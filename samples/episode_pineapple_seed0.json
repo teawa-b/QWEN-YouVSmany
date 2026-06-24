@@ -1,0 +1,564 @@
+{
+  "episode_id": "ep_3572c6af",
+  "version": 1,
+  "created_at": "2026-06-24T05:18:28.876887+00:00",
+  "state": "LOCKED",
+  "brief": {
+    "topic": "Pineapple belongs on pizza",
+    "protagonist_position": "for",
+    "tone": "witty but substantive",
+    "target_duration_s": 90,
+    "content_rating": "PG",
+    "visual_style": "clean modern debate stage",
+    "topic_kind": "opinion",
+    "num_challengers": 3,
+    "seed": 0
+  },
+  "safety": {
+    "allowed": true,
+    "reasons": [],
+    "requires_source_brief": false,
+    "sanitized_topic": "Pineapple belongs on pizza"
+  },
+  "source_brief": null,
+  "cast": {
+    "protagonist": {
+      "character_id": "protagonist",
+      "display_name": "Tom",
+      "role": "protagonist",
+      "stance": "for",
+      "core_contention": "Pineapple belongs on pizza is right on the merits",
+      "contention_tag": "thesis",
+      "supporting_points": [
+        "clear definition",
+        "strongest case first",
+        "address objections"
+      ],
+      "personality": {
+        "tone": "dry, analytical, deadpan",
+        "humour": 0.45,
+        "assertiveness": 0.61,
+        "concession_threshold": 0.58
+      },
+      "private_strategy": {
+        "opening": "state the thesis in one crisp sentence",
+        "expected_counter": "objections on texture, tradition and novelty",
+        "rebuttal": "concede the smallest point, hold the core",
+        "main_points": [
+          "define terms",
+          "lead with the strongest case",
+          "pre-empt the obvious objection"
+        ],
+        "fallback_point": "even skeptics admit the appeal",
+        "genuine_concession": "it is not for every palate",
+        "response_length_range": [
+          14,
+          24
+        ]
+      },
+      "boundaries": [
+        "no personal insults",
+        "no invented facts"
+      ]
+    },
+    "challengers": [
+      {
+        "character_id": "challenger_texture",
+        "display_name": "Iris",
+        "role": "challenger",
+        "stance": "against",
+        "core_contention": "Pineapple belongs on pizza fails on texture balance",
+        "contention_tag": "texture",
+        "supporting_points": [
+          "moisture pooling",
+          "heat-softened structure",
+          "contrast collapse"
+        ],
+        "personality": {
+          "tone": "warm but stubborn",
+          "humour": 0.26,
+          "assertiveness": 0.78,
+          "concession_threshold": 0.68
+        },
+        "private_strategy": {
+          "opening": "ask for a definition of a balanced bite",
+          "expected_counter": "sweet-salty contrast is intentional",
+          "rebuttal": "contrast is useful only when structure survives",
+          "main_points": [
+            "moisture pooling",
+            "heat-softened structure",
+            "contrast is useful only when structure survives"
+          ],
+          "fallback_point": "at minimum, texture deserves a real answer",
+          "genuine_concession": "the texture case has one fair exception",
+          "response_length_range": [
+            10,
+            20
+          ]
+        },
+        "boundaries": [
+          "no personal insults",
+          "no invented facts"
+        ]
+      },
+      {
+        "character_id": "challenger_tradition",
+        "display_name": "Mara",
+        "role": "challenger",
+        "stance": "against",
+        "core_contention": "Pineapple belongs on pizza disrespects established tradition",
+        "contention_tag": "tradition",
+        "supporting_points": [
+          "regional authenticity",
+          "craft lineage",
+          "name protection"
+        ],
+        "personality": {
+          "tone": "precise and mildly impatient",
+          "humour": 0.24,
+          "assertiveness": 0.68,
+          "concession_threshold": 0.49
+        },
+        "private_strategy": {
+          "opening": "invoke the original canonical form",
+          "expected_counter": "traditions evolve with taste",
+          "rebuttal": "evolution still needs a defensible core",
+          "main_points": [
+            "regional authenticity",
+            "craft lineage",
+            "evolution still needs a defensible core"
+          ],
+          "fallback_point": "at minimum, tradition deserves a real answer",
+          "genuine_concession": "the tradition case has one fair exception",
+          "response_length_range": [
+            10,
+            20
+          ]
+        },
+        "boundaries": [
+          "no personal insults",
+          "no invented facts"
+        ]
+      },
+      {
+        "character_id": "challenger_culinary-innovation",
+        "display_name": "Devin",
+        "role": "challenger",
+        "stance": "against",
+        "core_contention": "Pineapple belongs on pizza is lazy novelty, not real innovation",
+        "contention_tag": "culinary-innovation",
+        "supporting_points": [
+          "shock over craft",
+          "no technique gain",
+          "trend chasing"
+        ],
+        "personality": {
+          "tone": "precise and mildly impatient",
+          "humour": 0.16,
+          "assertiveness": 0.63,
+          "concession_threshold": 0.45
+        },
+        "private_strategy": {
+          "opening": "demand a concrete technique improvement",
+          "expected_counter": "delight is its own justification",
+          "rebuttal": "delight without craft does not last",
+          "main_points": [
+            "shock over craft",
+            "no technique gain",
+            "delight without craft does not last"
+          ],
+          "fallback_point": "at minimum, culinary-innovation deserves a real answer",
+          "genuine_concession": "the culinary-innovation case has one fair exception",
+          "response_length_range": [
+            10,
+            20
+          ]
+        },
+        "boundaries": [
+          "no personal insults",
+          "no invented facts"
+        ]
+      }
+    ],
+    "moderator": {
+      "character_id": "moderator",
+      "display_name": "Priya",
+      "role": "moderator",
+      "stance": "neutral",
+      "core_contention": "keep the debate fair, distinct and on time",
+      "contention_tag": "control",
+      "supporting_points": [
+        "enforce turns",
+        "kill repetition",
+        "force disputed questions"
+      ],
+      "personality": {
+        "tone": "precise and mildly impatient",
+        "humour": 0.15,
+        "assertiveness": 0.55,
+        "concession_threshold": 0.31
+      },
+      "private_strategy": null,
+      "boundaries": [
+        "stay neutral",
+        "no new arguments"
+      ]
+    }
+  },
+  "plan": {
+    "thesis": "Pineapple belongs on pizza is right on the merits",
+    "opening_objective": "state the thesis and the single strongest reason",
+    "contentions": [
+      {
+        "challenger_id": "challenger_texture",
+        "contention_tag": "texture",
+        "objective": "introduce the distinct texture objection and get a direct reply"
+      },
+      {
+        "challenger_id": "challenger_tradition",
+        "contention_tag": "tradition",
+        "objective": "introduce the distinct tradition objection and get a direct reply"
+      },
+      {
+        "challenger_id": "challenger_culinary-innovation",
+        "contention_tag": "culinary-innovation",
+        "objective": "introduce the distinct culinary-innovation objection and get a direct reply"
+      }
+    ],
+    "rapid_rebuttal_objective": "short, sharp exchanges that surface the real disagreement",
+    "closing_objective": "summarise concessions and the unresolved core",
+    "target_turns": 16
+  },
+  "transcript": {
+    "turns": [
+      {
+        "turn_id": "t0000",
+        "index": 0,
+        "state": "OPENING",
+        "speaker_id": "protagonist",
+        "speaker_name": "Tom",
+        "text": "My position is simple: Pineapple belongs on pizza. I'll define terms, lead with the strongest reason.",
+        "contention_tag": null,
+        "objective": "state the thesis and the single strongest reason",
+        "scene_cue": "wide_establish",
+        "start_s": 0.0,
+        "duration_s": 6.4
+      },
+      {
+        "turn_id": "t0001",
+        "index": 1,
+        "state": "CONTENTIONS",
+        "speaker_id": "challenger_texture",
+        "speaker_name": "Iris",
+        "text": "My objection is texture: pineapple belongs on pizza fails on texture.",
+        "contention_tag": "texture",
+        "objective": "introduce the distinct texture objection and get a direct reply",
+        "scene_cue": "challenger_close",
+        "start_s": 6.4,
+        "duration_s": 4.4
+      },
+      {
+        "turn_id": "t0002",
+        "index": 2,
+        "state": "CONTENTIONS",
+        "speaker_id": "protagonist",
+        "speaker_name": "Tom",
+        "text": "Fair on texture; yet fix that one detail and pineapple belongs on pizza holds exactly as I framed it.",
+        "contention_tag": null,
+        "objective": "answer the texture objection directly",
+        "scene_cue": "protagonist_close",
+        "start_s": 10.8,
+        "duration_s": 7.6
+      },
+      {
+        "turn_id": "t0003",
+        "index": 3,
+        "state": "CONTENTIONS",
+        "speaker_id": "challenger_tradition",
+        "speaker_name": "Mara",
+        "text": "My objection is tradition: pineapple belongs on pizza disrespects established tradition. Concretely, craft.",
+        "contention_tag": "tradition",
+        "objective": "introduce the distinct tradition objection and get a direct reply",
+        "scene_cue": "challenger_close",
+        "start_s": 18.4,
+        "duration_s": 5.2
+      },
+      {
+        "turn_id": "t0004",
+        "index": 4,
+        "state": "CONTENTIONS",
+        "speaker_id": "protagonist",
+        "speaker_name": "Tom",
+        "text": "The tradition objection is the strongest one here, and it still only dents the edge, not pineapple belongs.",
+        "contention_tag": null,
+        "objective": "answer the tradition objection directly — bring a NEW example, do not restate.",
+        "scene_cue": "protagonist_close",
+        "start_s": 23.6,
+        "duration_s": 7.2
+      },
+      {
+        "turn_id": "t0005",
+        "index": 5,
+        "state": "CONTENTIONS",
+        "speaker_id": "challenger_culinary-innovation",
+        "speaker_name": "Devin",
+        "text": "My objection is culinary-innovation: pineapple belongs on pizza is lazy novelty, not.",
+        "contention_tag": "culinary-innovation",
+        "objective": "introduce the distinct culinary-innovation objection and get a direct reply",
+        "scene_cue": "challenger_close",
+        "start_s": 30.8,
+        "duration_s": 4.8
+      },
+      {
+        "turn_id": "t0006",
+        "index": 6,
+        "state": "CONTENTIONS",
+        "speaker_id": "protagonist",
+        "speaker_name": "Tom",
+        "text": "I hear the culinary-innovation point, but it proves a limit, not a refutation — pineapple belongs on pizza survives it.",
+        "contention_tag": null,
+        "objective": "answer the culinary-innovation objection directly",
+        "scene_cue": "protagonist_close",
+        "start_s": 35.6,
+        "duration_s": 8.0
+      },
+      {
+        "turn_id": "t0007",
+        "index": 7,
+        "state": "RAPID_REBUTTAL",
+        "speaker_id": "moderator",
+        "speaker_name": "Priya",
+        "text": "Let's keep this fair. On that objection: one clear claim, one direct.",
+        "contention_tag": null,
+        "objective": "On texture: does Pineapple belongs on pizza hold once that specific objection is granted? Yes or no, and why.",
+        "scene_cue": "quick_cuts",
+        "start_s": 43.6,
+        "duration_s": 4.8
+      },
+      {
+        "turn_id": "t0008",
+        "index": 8,
+        "state": "RAPID_REBUTTAL",
+        "speaker_id": "challenger_texture",
+        "speaker_name": "Iris",
+        "text": "Still on texture: heat-softened structure is the crack, and you haven't closed it. Answer directly.",
+        "contention_tag": "texture",
+        "objective": "one sharp sentence",
+        "scene_cue": "quick_cuts",
+        "start_s": 48.4,
+        "duration_s": 6.0
+      },
+      {
+        "turn_id": "t0009",
+        "index": 9,
+        "state": "RAPID_REBUTTAL",
+        "speaker_id": "protagonist",
+        "speaker_name": "Tom",
+        "text": "On texture, I'll grant the narrow case — but the texture worry doesn't reach.",
+        "contention_tag": null,
+        "objective": "one sharp answer",
+        "scene_cue": "quick_cuts",
+        "start_s": 54.4,
+        "duration_s": 5.6
+      },
+      {
+        "turn_id": "t0010",
+        "index": 10,
+        "state": "RAPID_REBUTTAL",
+        "speaker_id": "moderator",
+        "speaker_name": "Priya",
+        "text": "Let's keep this fair. On that objection: one clear claim, one direct answer, no reusing.",
+        "contention_tag": null,
+        "objective": "On tradition: does Pineapple belongs on pizza hold once that specific objection is granted? Yes or no, and why. — bring a NEW example, do not restate. — bring a NEW example, do not restate. — bring a NEW example, do not restate.",
+        "scene_cue": "quick_cuts",
+        "start_s": 60.0,
+        "duration_s": 6.0
+      },
+      {
+        "turn_id": "t0011",
+        "index": 11,
+        "state": "RAPID_REBUTTAL",
+        "speaker_id": "challenger_tradition",
+        "speaker_name": "Mara",
+        "text": "Still on tradition: craft lineage is the crack, and you haven't closed it..",
+        "contention_tag": "tradition",
+        "objective": "one sharp sentence — bring a NEW example, do not restate.",
+        "scene_cue": "quick_cuts",
+        "start_s": 66.0,
+        "duration_s": 5.2
+      },
+      {
+        "turn_id": "t0012",
+        "index": 12,
+        "state": "RAPID_REBUTTAL",
+        "speaker_id": "protagonist",
+        "speaker_name": "Tom",
+        "text": "On tradition, I'll grant the narrow case — but the tradition worry doesn't reach.",
+        "contention_tag": null,
+        "objective": "one sharp answer — bring a NEW example, do not restate. — bring a NEW example, do not restate. — bring a NEW example, do not restate.",
+        "scene_cue": "quick_cuts",
+        "start_s": 71.2,
+        "duration_s": 5.6
+      },
+      {
+        "turn_id": "t0013",
+        "index": 13,
+        "state": "CLOSING",
+        "speaker_id": "moderator",
+        "speaker_name": "Priya",
+        "text": "Time. Closing statements now — one tight summary, no new arguments.",
+        "contention_tag": null,
+        "objective": "invite closing statements",
+        "scene_cue": "two_shot",
+        "start_s": 76.8,
+        "duration_s": 4.4
+      },
+      {
+        "turn_id": "t0014",
+        "index": 14,
+        "state": "CLOSING",
+        "speaker_id": "protagonist",
+        "speaker_name": "Tom",
+        "text": "To close: pineapple belongs on pizza still stands. I conceded the smallest point honestly.",
+        "contention_tag": null,
+        "objective": "summarise concessions and the unresolved core",
+        "scene_cue": "two_shot",
+        "start_s": 81.2,
+        "duration_s": 5.6
+      }
+    ]
+  },
+  "memory": {
+    "rolling_summary": "15 turns; contentions covered: texture, tradition, culinary-innovation.",
+    "recent_turns": [
+      "Mara: Still on tradition: craft lineage is the crack, and you have",
+      "Tom: On tradition, I'll grant the narrow case — but the tradition",
+      "Priya: Time. Closing statements now — one tight summary, no new arg",
+      "Tom: To close: pineapple belongs on pizza still stands. I concede"
+    ],
+    "unresolved_claims": [
+      "texture: My objection is texture: pineapple belongs on pizza fails on",
+      "tradition: My objection is tradition: pineapple belongs on pizza disres",
+      "culinary-innovation: My objection is culinary-innovation: pineapple belongs on pi",
+      "texture: Still on texture: heat-softened structure is the crack, and ",
+      "tradition: Still on tradition: craft lineage is the crack, and you have"
+    ],
+    "concessions": [],
+    "covered_contentions": [
+      "texture",
+      "tradition",
+      "culinary-innovation"
+    ],
+    "speaker_stats": {
+      "protagonist": {
+        "turns": 7,
+        "words": 115,
+        "consecutive": 1
+      },
+      "challenger_texture": {
+        "turns": 2,
+        "words": 26,
+        "consecutive": 0
+      },
+      "challenger_tradition": {
+        "turns": 2,
+        "words": 26,
+        "consecutive": 0
+      },
+      "challenger_culinary-innovation": {
+        "turns": 1,
+        "words": 12,
+        "consecutive": 0
+      },
+      "moderator": {
+        "turns": 3,
+        "words": 38,
+        "consecutive": 0
+      }
+    },
+    "last_speaker_id": "protagonist"
+  },
+  "highlights": [
+    {
+      "start_turn_id": "t0000",
+      "end_turn_id": "t0003",
+      "start_s": 0.0,
+      "end_s": 23.6,
+      "contention_tag": "texture",
+      "score": {
+        "hook": 0.967,
+        "conflict": 1.0,
+        "clarity": 1.0,
+        "novelty": 1.0,
+        "emotion": 0.2,
+        "self_containment": 0.9,
+        "visual_potential": 0.6,
+        "penalty": 0.0
+      },
+      "summary": "Tom: My position is simple: Pineapple belongs on pizz / Iris: My objection is texture: pineapple belongs on pi / Tom: Fair on texture; yet fix that one detail and pin / Mara: My objection is tradition: pineapple belongs on "
+    },
+    {
+      "start_turn_id": "t0005",
+      "end_turn_id": "t0008",
+      "start_s": 30.8,
+      "end_s": 54.4,
+      "contention_tag": "culinary-innovation",
+      "score": {
+        "hook": 0.633,
+        "conflict": 1.0,
+        "clarity": 1.0,
+        "novelty": 1.0,
+        "emotion": 0.533,
+        "self_containment": 0.9,
+        "visual_potential": 0.6,
+        "penalty": 0.0
+      },
+      "summary": "Devin: My objection is culinary-innovation: pineapple b / Tom: I hear the culinary-innovation point, but it pro / Priya: Let's keep this fair. On that objection: one cle / Iris: Still on texture: heat-softened structure is the"
+    },
+    {
+      "start_turn_id": "t0011",
+      "end_turn_id": "t0014",
+      "start_s": 66.0,
+      "end_s": 86.8,
+      "contention_tag": "tradition",
+      "score": {
+        "hook": 0.633,
+        "conflict": 1.0,
+        "clarity": 1.0,
+        "novelty": 0.7,
+        "emotion": 0.533,
+        "self_containment": 0.9,
+        "visual_potential": 0.6,
+        "penalty": 0.0
+      },
+      "summary": "Mara: Still on tradition: craft lineage is the crack,  / Tom: On tradition, I'll grant the narrow case — but t / Priya: Time. Closing statements now — one tight summary / Tom: To close: pineapple belongs on pizza still stand"
+    }
+  ],
+  "run_report": {
+    "provider": "mock",
+    "model": "mock-debate-1",
+    "llm_calls": 27,
+    "input_tokens": 3451,
+    "output_tokens": 849,
+    "retries": 8,
+    "events": [
+      "safety: allowed=True",
+      "prepared cast, private notes and round plan",
+      "state -> OPENING",
+      "state -> CONTENTIONS",
+      "repetition: regen turn for protagonist (sim=0.8842)",
+      "state -> RAPID_REBUTTAL",
+      "repetition: regen turn for moderator (sim=1.0)",
+      "repetition: regen turn for moderator (sim=0.9036)",
+      "repetition: regen turn for moderator (sim=0.788)",
+      "repetition: regen turn for challenger_tradition (sim=0.6011)",
+      "repetition: regen turn for protagonist (sim=0.8219)",
+      "repetition: regen turn for protagonist (sim=0.9299)",
+      "repetition: regen turn for protagonist (sim=0.8059)",
+      "state -> CLOSING",
+      "state -> LOCKED",
+      "locked: 15 turns, 86.8s, 3 highlights, approved=True"
+    ]
+  },
+  "approved": true
+}

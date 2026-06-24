@@ -1,0 +1,41 @@
+{
+  "note": "Starter prompts are NOT pre-generated debates. Selecting one runs the exact same pipeline as a custom topic (blueprint 3.4).",
+  "demo_seed": "Pineapple belongs on pizza",
+  "topics": [
+    {
+      "id": "pineapple_pizza",
+      "proposition": "Pineapple belongs on pizza",
+      "kind": "opinion",
+      "suggested_contentions": ["texture", "tradition", "culinary-innovation"],
+      "caution": "Avoid repetitive taste claims; spread across texture, tradition and innovation."
+    },
+    {
+      "id": "morning_vs_night",
+      "proposition": "Morning people live better than night owls",
+      "kind": "opinion",
+      "suggested_contentions": ["productivity", "health", "social-rhythm"],
+      "caution": "Do not present medical claims without grounding."
+    },
+    {
+      "id": "cats_vs_dogs",
+      "proposition": "Cats make better pets than dogs",
+      "kind": "opinion",
+      "suggested_contentions": ["independence", "affection", "maintenance"],
+      "caution": "Keep characters human for the first realism pipeline."
+    },
+    {
+      "id": "qwen2_vs_qwen3",
+      "proposition": "Qwen3 is a decisive upgrade over Qwen2",
+      "kind": "factual",
+      "suggested_contentions": ["reasoning", "multimodality", "efficiency"],
+      "caution": "Factual topic — ground all claims in a fixed source brief so agents do not invent specifications."
+    },
+    {
+      "id": "happyhorse_vs_wan",
+      "proposition": "HappyHorse is the better video route than Wan",
+      "kind": "factual",
+      "suggested_contentions": ["identity-fidelity", "motion-preservation", "cost"],
+      "caution": "Frame as a use-case comparison, not a universal winner; ground in current docs."
+    }
+  ]
+}

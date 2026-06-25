@@ -14,21 +14,34 @@ def build_round_plan(
     provider: Provider, brief: ShowBrief, cast: Cast, *, seed: int = 0
 ) -> tuple[RoundPlan, int, int, int]:
     tags = [c.contention_tag for c in cast.challengers]
+    # The live model must reference the cast's real ids; pass them explicitly so
+    # contention slots line up with the characters that were actually built.
+    challengers = [
+        {"challenger_id": c.character_id, "contention_tag": c.contention_tag}
+        for c in cast.challengers
+    ]
     target_turns = _target_turns(brief.target_duration_s)
     messages = make_messages(
         "plan",
         {
             "thesis": cast.protagonist.core_contention,
-            "tags": tags,
+            "tags": tags,  # consumed by the offline MockProvider
+            "challengers": challengers,
             "target_turns": target_turns,
             "seed": seed,
         },
         system=(
             "You are the Director. Lay out the round structure: opening claim, one "
             "contention round per challenger, a rapid-rebuttal round, and a closing "
-            "summary. Return JSON matching RoundPlan."
+            "summary. Create exactly one contention slot per challenger, copying its "
+            "challenger_id and contention_tag VERBATIM from the list provided. Return "
+            "JSON matching RoundPlan."
         ),
-        instruction=f"Topic: {brief.topic!r}. Challenger contentions: {tags}.",
+        instruction=(
+            f"Topic: {brief.topic!r}. Build one contention slot for each of these "
+            f"challengers, reusing their exact challenger_id and contention_tag: "
+            f"{challengers}."
+        ),
     )
     plan, result, retries = complete_structured(
         provider, messages, RoundPlan, temperature=0.4, seed=seed

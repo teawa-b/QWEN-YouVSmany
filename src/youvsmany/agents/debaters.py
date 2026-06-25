@@ -22,16 +22,18 @@ def generate_turn(
     topic: str,
     index: int,
     latest_opposing_tag: str | None = None,
+    latest_opposing_name: str = "",
     seed: int = 0,
 ) -> tuple[str, int, int]:
     """Return (text, input_tokens, output_tokens) for one spoken turn."""
     strat = speaker.private_strategy
-    if strat:
-        length_range = list(strat.response_length_range)
-    elif speaker.role == Role.MODERATOR:
-        length_range = [10, 18]  # moderator interjections stay short
+    # Punchy, clip-friendly turns: a full debate of ~15 turns must fit 60-120s of
+    # speech (~2.5 words/sec), so cap every turn tight regardless of what the
+    # private strategy asked for. The strategy still drives CONTENT, not length.
+    if speaker.role == Role.MODERATOR:
+        length_range = [6, 12]
     else:
-        length_range = [12, 24]
+        length_range = [12, 22]
     params = {
         "state": state.value,
         "speaker_id": speaker.character_id,
@@ -39,6 +41,7 @@ def generate_turn(
         "role": speaker.role.value,
         "contention_tag": speaker.contention_tag,
         "opposing_tag": latest_opposing_tag,
+        "opposing_name": latest_opposing_name,
         "objective": objective,
         "latest_opposing_claim": latest_opposing_claim,
         "topic": topic,
@@ -46,27 +49,57 @@ def generate_turn(
         "index": index,
         "seed": seed,
     }
+    opp = latest_opposing_name or "your opponent"
+
     # Compact, role-specific context only.
     private_ctx = ""
     if strat:
         private_ctx = (
-            f" Your private plan — opening: {strat.opening}; rebuttal: {strat.rebuttal}; "
-            f"main points: {', '.join(strat.main_points)}."
+            f" Your private game plan (do NOT read it aloud) — opening angle: {strat.opening}; "
+            f"go-to rebuttal: {strat.rebuttal}; main points: {', '.join(strat.main_points)}."
         )
-    system = (
-        f"You are {speaker.display_name}, the {speaker.role.value}. "
-        f"Tone: {speaker.personality.tone}. Stay in persona, stay on your contention "
-        f"({speaker.contention_tag}), respect boundaries: {', '.join(speaker.boundaries)}. "
-        f"Keep it to {length_range[0]}-{length_range[1]} words. Return JSON: {{\"text\": ...}}."
-        + private_ctx
-    )
+
+    if speaker.role == Role.MODERATOR:
+        system = (
+            f"You are {speaker.display_name}, the moderator of a fast, punchy one-vs-many "
+            f"debate show (think a televised panel). Keep order in a natural, human voice — "
+            f"never robotic. Push the speakers to answer the actual question. "
+            f"{length_range[0]}-{length_range[1]} words, one or two sentences. "
+            f'Return JSON: {{"text": ...}}.'
+        )
+    else:
+        system = (
+            f"You are {speaker.display_name}, the {speaker.role.value} in a live one-vs-many "
+            f"debate on {topic!r} (a Jubilee 'Surrounded'-style show). You're spirited, sharp "
+            f"and conversational — real spoken English, contractions, personality "
+            f"(tone: {speaker.personality.tone}). This is a back-and-forth, not a speech.\n"
+            f"RULES:\n"
+            f"- React to what {opp} JUST said: name the specific words or claim, then hit back.\n"
+            f"- Sometimes address them by name ({opp}). Be direct, even a little pointed.\n"
+            f"- Bring ONE concrete example, number, or scenario — never abstract filler.\n"
+            f"- Your angle is {speaker.contention_tag}; stay on it, don't drift to other objections.\n"
+            f"- NEVER use canned stems like 'My objection is...' or 'On {speaker.contention_tag}, "
+            f"I'll grant...'. Open differently every time. Sound like a person, not a template.\n"
+            f"- HARD LIMIT {length_range[1]} words. One or two short sentences, ONE sharp point — "
+            f"a quick televised exchange, never a monologue or a list. Respect: "
+            f"{', '.join(speaker.boundaries)}.\n"
+            f'Return JSON: {{"text": ...}}.' + private_ctx
+        )
+
+    if latest_opposing_claim:
+        reactor = (
+            f'{opp} just said: "{latest_opposing_claim}"\n'
+            f"Answer THAT directly — quote or paraphrase their point, then counter it. "
+        )
+    else:
+        reactor = ""
     instruction = (
-        f"State: {state.value}. Objective: {objective}. "
-        + (f'Latest opposing claim: "{latest_opposing_claim}". ' if latest_opposing_claim else "")
-        + "Produce your single spoken turn."
+        f"[{state.value}] {reactor}Your job this turn: {objective}. "
+        f"Give your single spoken line now."
     )
     messages = make_messages("turn", params, system=system, instruction=instruction)
-    result = provider.complete(messages, temperature=0.8, max_tokens=300, seed=seed)
+    # Tight token cap as a backstop so a turn can't balloon into an essay.
+    result = provider.complete(messages, temperature=0.9, max_tokens=90, seed=seed)
     # turn task returns {"text": ...}; parse leniently
     text = _coerce_text(result.text)
     return text, result.input_tokens, result.output_tokens

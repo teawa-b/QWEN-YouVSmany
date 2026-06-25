@@ -80,9 +80,18 @@ python -m youvsmany.evals.run_seeds
 # Tests
 pytest -q
 
-# API
+# API + web UI (open http://127.0.0.1:8000 in a browser)
 uvicorn youvsmany.api.main:app --reload
 ```
+
+### Web UI
+
+The API serves a single-page front end at `GET /` ([web/index.html](web/index.html)):
+pick a starter topic or type your own, set stance / challengers / duration, and
+run the whole pipeline. It renders the cast, the chat-style transcript (with turn
+IDs, timings and scene cues), highlight candidates and the live metrics. The one
+extra endpoint it uses is `POST /episodes/run` (brief → prepare → debate → lock
+in one call, returning the full episode).
 
 ### Run against live Qwen
 
@@ -90,8 +99,15 @@ uvicorn youvsmany.api.main:app --reload
 cp .env.example .env          # then edit:
 #   YVM_PROVIDER=qwen
 #   QWEN_API_KEY=sk-ws-...
-#   QWEN_BASE_URL=https://.../v1   (OpenAI-compatible chat endpoint)
+#   QWEN_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+#   QWEN_TEXT_MODEL=qwen3.7-plus   (or qwen3.6-flash for faster runs)
 ```
+
+Structured-output prompts embed each Pydantic JSON schema so the live model
+returns exactly the required shape (the offline mock ignores this and parses the
+`YVM_TASK` directive instead). The default request timeout is 120 s; the
+reasoning model `qwen3.7-plus` is thorough but slow, so `qwen3.6-flash` is a good
+choice for quick end-to-end runs.
 
 ## Sample output (mock, seed 0)
 

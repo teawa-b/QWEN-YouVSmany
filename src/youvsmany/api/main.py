@@ -12,7 +12,11 @@ Media endpoints (captures/images/videos/package) belong to later phases.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from youvsmany.adapters.factory import build_provider
@@ -20,23 +24,89 @@ from youvsmany.agents import orchestrator
 from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
 from youvsmany.contracts.brief import ShowBrief
+from youvsmany.evals.metrics import score_episode
 from youvsmany.store import EpisodeStore
 
 app = FastAPI(title="You Vs Many — Debate Intelligence", version="0.1.0")
+
+# The frontend is served same-origin, but allow CORS so the UI can also run
+# from a separate dev server if desired.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+_WEB_DIR = Path(__file__).resolve().parents[3] / "web"
 
 
 def _store() -> EpisodeStore:
     return EpisodeStore(get_settings().run_dir)
 
 
+def _episode_view(ep) -> dict:
+    """Full client-facing episode payload: cast, transcript turns, highlights,
+    metrics and run report — everything the frontend needs to render a debate."""
+    return {
+        "episode_id": ep.episode_id,
+        "version": ep.version,
+        "state": ep.state,
+        "approved": ep.approved,
+        "topic": ep.brief.topic,
+        "protagonist_position": ep.brief.protagonist_position,
+        "safety": ep.safety.model_dump() if ep.safety else None,
+        "cast": [
+            {
+                "character_id": c.character_id,
+                "display_name": c.display_name,
+                "role": c.role,
+                "stance": c.stance,
+                "contention_tag": c.contention_tag,
+                "core_contention": c.core_contention,
+            }
+            for c in (ep.cast.all_speakers() if ep.cast else [])
+        ],
+        "turns": [t.model_dump() for t in ep.transcript.turns],
+        "duration_s": ep.transcript.total_duration_s,
+        "highlights": [h.model_dump() for h in ep.highlights],
+        "metrics": score_episode(ep).model_dump() if ep.transcript.turns else None,
+        "run_report": ep.run_report.model_dump(),
+    }
+
+
 class PrepareBody(BaseModel):
     suggested_tags: list[str] | None = None
+
+
+class RunBody(BaseModel):
+    brief: ShowBrief
+    suggested_tags: list[str] | None = None
+
+
+@app.get("/")
+def index() -> FileResponse:
+    return FileResponse(_WEB_DIR / "index.html")
 
 
 @app.get("/health")
 def health() -> dict:
     s = get_settings()
     return {"status": "ok", "provider": s.provider, "model": s.qwen_text_model}
+
+
+@app.post("/episodes/run")
+def run_episode(body: RunBody) -> dict:
+    """One-shot: brief -> prepare -> debate -> lock, returning the full episode."""
+    provider = build_provider()
+    try:
+        ep = orchestrator.run_full(
+            body.brief, provider=provider, suggested_tags=body.suggested_tags
+        )
+    except SafetyRejected as e:
+        raise HTTPException(status_code=422, detail=f"safety: {e}")
+    _store().save(ep)
+    return _episode_view(ep)
 
 
 @app.post("/episodes")
@@ -105,6 +175,11 @@ def get_episode(episode_id: str) -> dict:
         "highlights": [h.model_dump() for h in ep.highlights],
         "run_report": ep.run_report.model_dump(),
     }
+
+
+@app.get("/episodes/{episode_id}/full")
+def get_episode_full(episode_id: str) -> dict:
+    return _episode_view(_load(_store(), episode_id))
 
 
 def _load(store: EpisodeStore, episode_id: str):

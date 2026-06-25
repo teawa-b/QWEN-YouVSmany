@@ -41,8 +41,10 @@ def build_cast(
             f"Tone: {brief.tone}."
         ),
     )
+    # Cast is the largest structured output (protagonist + N challengers +
+    # moderator, each with nested fields), so it needs a generous token budget.
     cast, result, retries = complete_structured(
-        provider, messages, Cast, temperature=0.7, seed=seed
+        provider, messages, Cast, temperature=0.7, seed=seed, max_tokens=4096
     )
     _assert_distinct(cast)
     return cast, result.input_tokens, result.output_tokens, retries

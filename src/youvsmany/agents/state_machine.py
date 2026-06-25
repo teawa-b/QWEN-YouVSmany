@@ -96,8 +96,12 @@ class DebateRunner:
             return
 
         opposing_turn = self._latest_opposing_turn(speaker.character_id)
-        latest_opposing = opposing_turn.text if opposing_turn else ""
-        latest_opposing_tag = opposing_turn.contention_tag if opposing_turn else None
+        # Fall back to the immediately preceding turn so a speaker always has
+        # something concrete to react to (keeps the exchange a back-and-forth).
+        react_turn = opposing_turn or (self.transcript.turns[-1] if self.transcript.turns else None)
+        latest_opposing = react_turn.text if react_turn else ""
+        latest_opposing_tag = react_turn.contention_tag if react_turn else None
+        latest_opposing_name = react_turn.speaker_name if react_turn else ""
         prior_texts = [t.text for t in self.transcript.turns]
 
         text = ""
@@ -109,6 +113,7 @@ class DebateRunner:
                 objective=objective,
                 latest_opposing_claim=latest_opposing,
                 latest_opposing_tag=latest_opposing_tag,
+                latest_opposing_name=latest_opposing_name,
                 topic=self.topic,
                 index=self._counter,
                 seed=self.seed + attempt,

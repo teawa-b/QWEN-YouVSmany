@@ -80,13 +80,39 @@ class StructuredError(RuntimeError):
     pass
 
 
+def schema_hint(schema: type[BaseModel]) -> str:
+    """A compact, model-facing description of the exact JSON shape required.
+
+    The MockProvider parses the `YVM_TASK` directive and ignores this; a live
+    model (which has no internal knowledge of our Pydantic schemas) needs the
+    field names spelled out or it will invent its own and fail validation."""
+    js = schema.model_json_schema()
+    return (
+        "Return ONLY a single JSON object — no prose, no code fences — that "
+        f"validates against this JSON Schema for `{schema.__name__}`. Use exactly "
+        "these field names; do not add, rename, omit or nest fields differently:\n"
+        + json.dumps(js, ensure_ascii=False)
+    )
+
+
+def _inject_schema(messages: list[dict[str, str]], schema: type[BaseModel]) -> list[dict[str, str]]:
+    """Append the schema hint to the first system message (or prepend one)."""
+    convo = [dict(m) for m in messages]
+    hint = schema_hint(schema)
+    for m in convo:
+        if m.get("role") == "system":
+            m["content"] = m["content"].rstrip() + "\n\n" + hint
+            return convo
+    return [{"role": "system", "content": hint}, *convo]
+
+
 def complete_structured(
     provider: Provider,
     messages: list[dict[str, str]],
     schema: type[T],
     *,
     temperature: float = 0.5,
-    max_tokens: int = 900,
+    max_tokens: int = 2048,
     seed: int | None = None,
     max_attempts: int = 3,
 ) -> tuple[T, LLMResult, int]:
@@ -97,7 +123,7 @@ def complete_structured(
 
     retries = 0
     last_err: Exception | None = None
-    convo = list(messages)
+    convo = _inject_schema(messages, schema)
     aggregate = LLMResult(text="")
     for attempt in range(max_attempts):
         result = provider.complete(

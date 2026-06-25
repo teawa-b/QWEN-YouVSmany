@@ -59,12 +59,34 @@ def generate_turn(
             f"go-to rebuttal: {strat.rebuttal}; main points: {', '.join(strat.main_points)}."
         )
 
+    is_claim_beat = speaker.role == Role.PROTAGONIST and "claim is that" in objective
+    is_voted_out_beat = speaker.role == Role.MODERATOR and "voted out" in objective
+
     if speaker.role == Role.MODERATOR:
+        if is_voted_out_beat:
+            system = (
+                f"You are {speaker.display_name}, moderator of a Jubilee 'Surrounded'-style "
+                f"one-vs-many show. A one-on-one duel just ended. In a warm, quick ritual voice, "
+                f"tell {opp} the majority has voted them out and to return to their seat. No new "
+                f"argument, no recap. {length_range[0]}-{length_range[1]} words. "
+                f'Return JSON: {{"text": ...}}.'
+            )
+        else:
+            system = (
+                f"You are {speaker.display_name}, the moderator of a fast, punchy one-vs-many "
+                f"debate show (think a televised panel). Keep order in a natural, human voice - "
+                f"never robotic. Push the speakers to answer the actual question. "
+                f"{length_range[0]}-{length_range[1]} words, one or two sentences. "
+                f'Return JSON: {{"text": ...}}.'
+            )
+    elif is_claim_beat:
         system = (
-            f"You are {speaker.display_name}, the moderator of a fast, punchy one-vs-many "
-            f"debate show (think a televised panel). Keep order in a natural, human voice - "
-            f"never robotic. Push the speakers to answer the actual question. "
-            f"{length_range[0]}-{length_range[1]} words, one or two sentences. "
+            f"You are {speaker.display_name}, the one person surrounded in a Jubilee "
+            f"'Surrounded'-style show on {topic!r}. You are opening a NEW claim segment: stand and "
+            f"declare your claim to the whole room, starting literally with 'My first claim is "
+            f"that...' or 'My next claim is that...' as the objective says. Assert it - do not "
+            f"react to anyone yet, no one has answered. One punchy sentence, then invite them to "
+            f"change your mind. HARD LIMIT {length_range[1]} words. "
             f'Return JSON: {{"text": ...}}.'
         )
     else:

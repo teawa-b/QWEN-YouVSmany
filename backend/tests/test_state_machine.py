@@ -46,17 +46,66 @@ def test_distinct_contentions():
     assert len(set(tags)) == len(tags)
 
 
-def test_contentions_are_sequential_mini_duels_without_canned_labels():
-    ep = _run(topic="the chicken came before egg", tags=("framing", "evidence", "consequences"))
+def _claim_segments(ep):
+    """Split the CONTENTIONS turns into Surrounded-style claim segments: each one
+    opens on a protagonist claim card and closes on a moderator voted-out gavel."""
     contentions = [t for t in ep.transcript.turns if t.state == DebateState.CONTENTIONS]
-    ids = [t.speaker_id for t in contentions]
+    segments, current = [], []
+    for t in contentions:
+        if t.scene_cue == "claim_card" and current:
+            segments.append(current)
+            current = []
+        current.append(t)
+    if current:
+        segments.append(current)
+    return segments
 
+
+def test_claim_segments_follow_surrounded_rhythm():
+    ep = _run(topic="the chicken came before egg", tags=("framing", "evidence", "consequences"))
     protagonist_id = ep.cast.protagonist.character_id
-    expected = []
-    for challenger in ep.cast.challengers:
-        expected.extend([challenger.character_id, protagonist_id, challenger.character_id, protagonist_id])
-    assert ids == expected
+    moderator_id = ep.cast.moderator.character_id
+
+    segments = _claim_segments(ep)
+    # One claim segment per challenger, in cast order.
+    assert len(segments) == len(ep.cast.challengers)
+
+    for seg_index, (segment, challenger) in enumerate(zip(segments, ep.cast.challengers)):
+        # Opens on the protagonist raising a claim to the room.
+        head = segment[0]
+        assert head.scene_cue == "claim_card"
+        assert head.speaker_id == protagonist_id
+        ordinal = "first claim" if seg_index == 0 else "next claim"
+        assert ordinal in head.text.lower()
+
+        # Closes on the moderator voting the challenger out, by name.
+        tail = segment[-1]
+        assert tail.scene_cue == "voted_out"
+        assert tail.speaker_id == moderator_id
+        assert challenger.display_name in tail.text
+
+        # The duel in between is a strict one-on-one: challenger then protagonist,
+        # alternating, never two of the same speaker back to back.
+        duel = segment[1:-1]
+        assert len(duel) >= 2 and len(duel) % 2 == 0
+        for i, turn in enumerate(duel):
+            expected = challenger.character_id if i % 2 == 0 else protagonist_id
+            assert turn.speaker_id == expected
 
     transcript_text = " ".join(t.text for t in ep.transcript.turns)
     forbidden = ["My objection is", "gap A", "gap B", "weak on", "I'll grant"]
     assert not any(phrase in transcript_text for phrase in forbidden)
+
+
+def test_every_challenger_is_greeted_and_voted_out():
+    ep = _run()
+    voted_out = [t for t in ep.transcript.turns if t.scene_cue == "voted_out"]
+    claim_cards = [t for t in ep.transcript.turns if t.scene_cue == "claim_card"]
+    assert len(voted_out) == len(claim_cards) == len(ep.cast.challengers)
+    # Each duel opens with a handshake from the challenger.
+    greetings = ("nice to meet you", "good to meet you", "how's it going")
+    for challenger in ep.cast.challengers:
+        first_line = next(
+            t.text.lower() for t in ep.transcript.turns if t.speaker_id == challenger.character_id
+        )
+        assert any(g in first_line for g in greetings)

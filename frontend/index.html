@@ -121,6 +121,19 @@
   .b-foot{margin-top:8px;font-size:11.5px;color:var(--faint);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     display:flex;gap:12px;flex-wrap:wrap}
 
+  /* Surrounded-style ritual beats */
+  .claimcard{margin:26px 0 6px;padding:15px 18px;border-radius:var(--radius);
+    background:linear-gradient(180deg,var(--accent-soft),transparent);
+    border:1px solid var(--accent-bd);border-left:3px solid var(--accent)}
+  .claimcard .ix{font-size:11px;text-transform:uppercase;letter-spacing:0;color:#bccbff;font-weight:700}
+  .claimcard .who{color:var(--faint);font-weight:600}
+  .claimcard .ctxt{font-size:16px;font-weight:600;color:var(--glow);margin-top:5px;line-height:1.45}
+  .votedout{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0 4px}
+  .votedout .ritual{font-size:12.5px;color:var(--warn);background:rgba(239,191,79,.08);
+    border:1px dashed rgba(239,191,79,.45);border-radius:var(--radius-sm);padding:6px 14px}
+  .votedout .ritual b{color:var(--text);font-weight:600}
+  .seatline{flex:1;height:1px;background:var(--border-soft);max-width:90px}
+
   .hl{display:flex;align-items:center;gap:14px;background:var(--panel-2);border:1px solid var(--border-soft);
     border-radius:var(--radius-sm);padding:12px 15px;margin-bottom:10px}
   .hl .rng{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--muted);flex:0 0 auto}
@@ -360,9 +373,27 @@ function render(d){
 
   // transcript
   out.push(`<h2 class="sec">Transcript</h2>`);
+  let claimNo = 0;
   d.turns.forEach(t=>{
     const col = colorFor[t.speaker_id]||MOD;
     const role = (d.cast.find(c=>c.character_id===t.speaker_id)||{}).role;
+
+    // Surrounded ritual beats: a claim card opens each duel, the gavel ends it.
+    if(t.scene_cue==="claim_card"){
+      claimNo++;
+      out.push(`<div class="claimcard">
+        <div class="ix">Claim ${claimNo} · <span class="who">${esc(t.speaker_name)}</span></div>
+        <div class="ctxt">${esc(t.text)}</div>
+      </div>`);
+      return;
+    }
+    if(t.scene_cue==="voted_out"){
+      out.push(`<div class="votedout"><span class="seatline"></span>
+        <span class="ritual"><b>${esc(t.speaker_name)}</b>: ${esc(t.text)}</span>
+        <span class="seatline"></span></div>`);
+      return;
+    }
+
     const side = role==="protagonist" ? "right" : role==="moderator" ? "center" : "left";
     const tagChip = t.contention_tag ? `<span class="ct">${esc(t.contention_tag)}</span>` : "";
     const av = side==="center" ? "" :

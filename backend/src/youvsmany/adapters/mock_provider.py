@@ -398,35 +398,53 @@ def _short_topic(topic: str) -> str:
 # Humanized turn templates. These keep the offline provider close to the intended
 # live Qwen behavior.
 _PROTA_REBUTTALS = [
-    "{opp}, I hear that, but {counter}. That does not kill the claim.",
+    "{opp}, I hear that. But {counter}. The claim still stands.",
     "No, {opp}, that is not a dodge. {counter_cap}.",
-    "That is the hard case, {opp}. Still, {counter}, so the core survives.",
-    "Fine, the edge is messy. But {counter}, so I am not backing off.",
+    "Hard case, {opp}. Still, {counter}. The core survives.",
+    "Fine, the edge is messy. But {counter}. I am not backing off.",
 ]
 
 _PROTA_PUSHBACKS = [
     "Then show why that changes the answer, {opp}. I do not think it does.",
     "That is the point, {opp}: reality is not always clean.",
     "I am not hiding from {point}. I am saying it narrows the answer.",
+    "Name the case where {point} actually flips it, {opp}. You cannot.",
+    "You keep circling {point}, {opp}. It still does not touch the core.",
 ]
 
 _CHALLENGER_OPENERS = [
     "{opp}, that sounds tidy, but {point} breaks it. Are you brushing that aside?",
     "Hold on, {opp}. {point_cap} is the problem, not a footnote.",
     "You make this sound obvious, {opp}, but {point} is the hard part.",
+    "Here is where it cracks, {opp}: {point}. Answer that, not the easy version.",
+    "Be honest, {opp} - {point} is the bit your claim quietly skips.",
 ]
 
 _CHALLENGER_PUSHBACKS = [
     "No, {opp}, that is the dodge. You left {point} sitting there.",
     "That still does not land, {opp}. If {point} matters, your answer is too neat.",
     "Come on, {opp}. Calling it messy does not explain {point}.",
+    "You moved the goalposts, {opp}. I asked about {point}, not the tidy version.",
+    "Still ducking it, {opp}: {point} is the whole question and you skated past.",
 ]
 
 _RAPID_LINES = [
     "{opp}, yes or no: if {point} is true, why should anyone buy your answer?",
     "Quickly, {opp}: deal with {point} without changing the question.",
     "Then answer the actual pressure point, {opp}: {point}.",
+    "One word, {opp}: does {point} sink your claim or not?",
+    "No speeches, {opp} - just {point}. Settle it.",
 ]
+
+# Moderator gavel that ends a one-on-one duel, Jubilee 'Surrounded' style.
+_VOTED_OUT = [
+    "Time, {opp}. The majority's voted you out - back to your seat.",
+    "That's the round, {opp}. You're voted out. Return to your seat.",
+    "{opp}, you've been voted out. Please head back to your seat.",
+    "Good work, {opp} - the vote's in, you're out. Take your seat.",
+]
+
+_GREETINGS = ["Nice to meet you.", "Hey, good to meet you.", "How's it going?"]
 
 
 def _clean_sentence(text: str) -> str:
@@ -435,8 +453,8 @@ def _clean_sentence(text: str) -> str:
     return text[:1].upper() + text[1:].rstrip(".")
 
 
-def _pick(items: list[str], jitter: float) -> str:
-    return items[int(jitter * len(items)) % len(items)]
+def _pick(items: list[str], jitter: float, bump: int = 0) -> str:
+    return items[(int(jitter * len(items)) + bump) % len(items)]
 
 
 def _line(
@@ -456,12 +474,16 @@ def _line(
     opp_lib = _lib_for(opp_tag) if opp_tag else None
     short = _short_topic(topic)
     otag = opp_tag or "that point"
+    # When the repetition guard regenerates a turn it appends "do not restate" to
+    # the objective once per retry; honor that by rotating both the concrete point
+    # and the template so a deep one-on-one duel does not echo itself.
+    bump = objective.count("do not restate")
     if lib:
-        point = lib["points"][int(jitter * len(lib["points"])) % len(lib["points"])]
+        point = lib["points"][(int(jitter * len(lib["points"])) + bump) % len(lib["points"])]
     else:
         point = otag
     if opp_lib and role == "protagonist":
-        point = opp_lib["points"][int(jitter * len(opp_lib["points"])) % len(opp_lib["points"])]
+        point = opp_lib["points"][(int(jitter * len(opp_lib["points"])) + bump) % len(opp_lib["points"])]
     source_lib = opp_lib if role == "protagonist" and opp_lib else lib or _lib_for(otag)
     counter = source_lib["counter"]
     rebuttal = source_lib["rebuttal"]
@@ -469,23 +491,32 @@ def _line(
     counter_cap = _clean_sentence(counter)
 
     if role == "moderator":
-        if state == "CLOSING":
+        if "voted out" in objective:
+            # Crafted ritual line: keep it whole so the gavel never clips mid-phrase.
+            return _clip_words(_pick(_VOTED_OUT, jitter).format(opp=opp_name), 16)
+        elif state == "CLOSING":
             base = "Time. Closings now - no new arguments."
         else:
             base = f"Keep it tight. {name} wants one direct answer on {otag}, then we move."
     elif role == "protagonist":
         if state == "OPENING":
-            base = (
-                f"I am taking the side that {short}. Not as a slogan - I think the cleanest "
-                f"definition and the strongest example point there."
+            # Crafted establishing beat: keep the full "surrounded" framing intact.
+            return _clip_words(
+                f"One of me, all of you. I am defending that {short}, claim by claim. "
+                f"Come change my mind.",
+                30,
             )
         elif state == "CLOSING":
             base = (
                 f"Closing it out: {short} still holds. The others found messy edges, but not "
                 f"a better answer to the main question."
             )
+        elif "first claim" in objective or "next claim" in objective:
+            ordinal = "first" if "first claim" in objective else "next"
+            # Crafted claim card: keep the whole assertion + the dare to flip it.
+            return _clip_words(f"My {ordinal} claim is that {counter}. Come change my mind.", 18)
         elif "pushback" in objective or "narrowest" in objective:
-            tmpl = _pick(_PROTA_PUSHBACKS, jitter)
+            tmpl = _pick(_PROTA_PUSHBACKS, jitter, bump)
             base = tmpl.format(
                 opp=opp_name,
                 counter=counter,
@@ -494,16 +525,20 @@ def _line(
                 short=short,
             )
         else:
-            tmpl = _pick(_PROTA_REBUTTALS, jitter)
+            tmpl = _pick(_PROTA_REBUTTALS, jitter, bump)
             base = tmpl.format(opp=opp_name, counter=counter, counter_cap=counter_cap, short=short)
     else:
         if state == "RAPID_REBUTTAL":
-            tmpl = _pick(_RAPID_LINES, jitter)
+            tmpl = _pick(_RAPID_LINES, jitter, bump)
             base = tmpl.format(opp=opp_name, point=point)
         elif "push" in objective:
-            tmpl = _pick(_CHALLENGER_PUSHBACKS, jitter)
+            tmpl = _pick(_CHALLENGER_PUSHBACKS, jitter, bump)
             base = tmpl.format(opp=opp_name, point=point, point_cap=point_cap, rebuttal=rebuttal)
         else:
-            tmpl = _pick(_CHALLENGER_OPENERS, jitter)
+            tmpl = _pick(_CHALLENGER_OPENERS, jitter, bump)
             base = tmpl.format(opp=opp_name, point=point, point_cap=point_cap, rebuttal=rebuttal)
+        # A duel opens with a quick handshake; clip the substance first so the
+        # greeting never eats the pressure point, then prepend it whole.
+        if objective.startswith("greet your opponent first"):
+            return f"{_pick(_GREETINGS, jitter)} {_clip_words(base, max(8, target_words))}"
     return _clip_words(base, max(8, target_words))

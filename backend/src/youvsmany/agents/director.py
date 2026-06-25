@@ -71,3 +71,53 @@ def next_speaker_blocked(memory: EpisodeMemory, speaker_id: str) -> bool:
 def disputed_question(tag: str, topic: str) -> str:
     """Conflict rule: a precise question both sides must answer."""
     return f"On {tag}: does {topic} hold once that specific objection is granted? Yes or no, and why."
+
+
+# --- Surrounded-style segment ritual (claim -> duel -> "voted out") ----
+
+
+def claim_objective(ordinal: str, tag: str, topic: str) -> str:
+    """Protagonist beat that opens a claim segment, Jubilee 'Surrounded' style.
+
+    The word 'claim' and the ordinal are load-bearing: the offline provider keys
+    its template off them, and the live model reads them as a stage direction."""
+    return (
+        f"State your {ordinal} claim to the room out loud, Jubilee 'Surrounded' style: "
+        f"say 'My {ordinal} claim is that …' and assert your strongest line on {tag} "
+        f"for {topic}. One sentence, then dare them to change your mind."
+    )
+
+
+def voted_out_objective(challenger_name: str) -> str:
+    """Moderator beat that ends a one-on-one duel and resets the seat."""
+    return (
+        f"Close this duel: tell {challenger_name} they've been voted out by the "
+        f"majority and to return to their seat. Warm, quick, ritual — no new argument."
+    )
+
+
+def segment_passes(num_segments: int, target_turns: int) -> list[int]:
+    """How many challenger->protagonist passes each claim segment runs.
+
+    Every segment carries a fixed 2-turn ritual overhead (claim card + voted-out
+    closer) on top of its duel passes. Opening + closing add 3 more turns. We seed
+    one pass per segment and add passes round-robin until the run lands near the
+    director's target, clamped to the locked 12-24 window."""
+    n = max(1, num_segments)
+    passes = [1] * n
+    fixed = 1 + 2  # opening + (moderator invite + protagonist close)
+
+    def total(ps: list[int]) -> int:
+        return fixed + sum(2 + p * 2 for p in ps)
+
+    target = max(12, min(20, target_turns))
+    i = 0
+    # Grow toward the target, then make sure we clear the 12-turn floor, never
+    # crossing the 24-turn ceiling.
+    while total(passes) + 2 <= min(target, 24):
+        passes[i % n] += 1
+        i += 1
+    while total(passes) < 12 and total(passes) + 2 <= 24:
+        passes[i % n] += 1
+        i += 1
+    return passes

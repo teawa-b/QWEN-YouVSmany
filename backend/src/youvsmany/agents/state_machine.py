@@ -60,53 +60,72 @@ class DebateRunner:
         self._emit(self.cast.protagonist, DebateState.OPENING, self.plan.opening_objective)
 
     def _do_contentions(self) -> None:
-        for slot in self.plan.contentions:
+        """One claim segment per challenger, Jubilee 'Surrounded' rhythm:
+
+        protagonist states the claim -> a one-on-one duel of N passes ->
+        moderator votes the challenger out. Duel depth scales to the budget."""
+        slots = self.plan.contentions
+        passes = director.segment_passes(len(slots), self.plan.target_turns)
+        for seg_index, slot in enumerate(slots):
             challenger = self.cast.by_id(slot.challenger_id)
-            self.memory.covered_contentions.append(slot.contention_tag)
-            self._emit(
-                challenger,
-                DebateState.CONTENTIONS,
-                f"challenge the protagonist on {slot.contention_tag} with one concrete pressure point",
-            )
-            self._emit(
-                self.cast.protagonist,
-                DebateState.CONTENTIONS,
-                f"answer the {slot.contention_tag} objection directly and keep it conversational",
-            )
-            self._emit(
-                challenger,
-                DebateState.CONTENTIONS,
-                f"push back on the exact answer about {slot.contention_tag}; raise the heat, no new topic",
-            )
+            tag = slot.contention_tag
+            self.memory.covered_contentions.append(tag)
+            ordinal = "first" if seg_index == 0 else "next"
+
+            # 1. The protagonist raises the claim to the room (claim card).
             self._emit(
                 self.cast.protagonist,
                 DebateState.CONTENTIONS,
-                f"reply to the pushback on {slot.contention_tag}; concede only the narrowest fair point",
+                director.claim_objective(ordinal, tag, self.topic),
+                react_to=challenger,
+                scene_cue="claim_card",
+                force=True,
+            )
+
+            # 2. The one-on-one duel: challenger presses, protagonist answers.
+            for pass_index in range(passes[seg_index]):
+                first = pass_index == 0
+                if first:
+                    ch_obj = (
+                        f"meet the protagonist, then challenge the claim on {tag} "
+                        f"with one concrete pressure point"
+                    )
+                    pr_obj = f"answer the {tag} objection directly and keep it conversational"
+                else:
+                    ch_obj = (
+                        f"push back on the exact answer about {tag}; raise the heat, no new topic"
+                    )
+                    pr_obj = (
+                        f"reply to the pushback on {tag}; concede only the narrowest fair point"
+                    )
+                self._emit(challenger, DebateState.CONTENTIONS, ch_obj, greet=first)
+                self._emit(self.cast.protagonist, DebateState.CONTENTIONS, pr_obj)
+
+            # 3. The seat resets: the challenger is voted out.
+            self._emit(
+                self.cast.moderator,
+                DebateState.CONTENTIONS,
+                director.voted_out_objective(challenger.display_name),
+                react_to=challenger,
+                scene_cue="voted_out",
+                force=True,
             )
 
     def _do_rapid_rebuttal(self) -> None:
-        # Top up short casts with extra pressure while preserving one-at-a-time duels.
+        # Depth is baked into the claim segments now, so this is a pass-through
+        # state. Kept as a safety net: only fires if a tiny cast somehow landed
+        # under the locked floor, adding one extra duel pass on the last claim.
         closing_turns = 2
         needed = MIN_LOCKED_TURNS - len(self.transcript.turns) - closing_turns
-        if needed <= 0:
+        if needed <= 0 or not self.plan.contentions:
             return
-
-        slots = self.plan.contentions or []
-        idx = 0
-        while needed > 0 and slots:
-            if len(self.transcript.turns) + closing_turns + 2 > MAX_LOCKED_TURNS:
-                break
-            slot = slots[idx % len(slots)]
-            challenger = self.cast.by_id(slot.challenger_id)
+        slot = self.plan.contentions[-1]
+        challenger = self.cast.by_id(slot.challenger_id)
+        while needed > 0 and len(self.transcript.turns) + closing_turns + 2 <= MAX_LOCKED_TURNS:
             objective = director.disputed_question(slot.contention_tag, self.topic)
-            self._emit(
-                challenger,
-                DebateState.RAPID_REBUTTAL,
-                f"one urgent follow-up: {objective}",
-            )
+            self._emit(challenger, DebateState.RAPID_REBUTTAL, f"one urgent follow-up: {objective}")
             self._emit(self.cast.protagonist, DebateState.RAPID_REBUTTAL, "one sharp direct answer")
             needed -= 2
-            idx += 1
 
     def _do_closing(self) -> None:
         self._emit_moderator("invite closing statements")
@@ -117,21 +136,45 @@ class DebateRunner:
     def _emit_moderator(self, objective: str) -> None:
         self._emit(self.cast.moderator, self.ep.state, objective)
 
-    def _emit(self, speaker, state: DebateState, objective: str) -> None:
-        # Dominance rule.
-        if director.next_speaker_blocked(self.memory, speaker.character_id):
+    def _emit(
+        self,
+        speaker,
+        state: DebateState,
+        objective: str,
+        *,
+        react_to=None,
+        scene_cue: str | None = None,
+        force: bool = False,
+        greet: bool = False,
+    ) -> None:
+        # Dominance rule (skipped for forced ritual beats: claim cards, the
+        # voted-out gavel and the opening/closing always land).
+        if not force and director.next_speaker_blocked(self.memory, speaker.character_id):
             self.ep.run_report.events.append(
                 f"dominance: skipped extra consecutive turn for {speaker.character_id}"
             )
             return
 
-        opposing_turn = self._latest_opposing_turn(speaker.character_id)
-        # Fall back to the immediately preceding turn so a speaker always has
-        # something concrete to react to (keeps the exchange a back-and-forth).
-        react_turn = opposing_turn or (self.transcript.turns[-1] if self.transcript.turns else None)
-        latest_opposing = react_turn.text if react_turn else ""
-        latest_opposing_tag = react_turn.contention_tag if react_turn else None
-        latest_opposing_name = react_turn.speaker_name if react_turn else ""
+        if react_to is not None:
+            # Point the speaker at a specific opponent even before they've spoken
+            # (the claim card targets the challenger about to stand up; the gavel
+            # names the challenger being sent back to their seat).
+            react_turn = self._last_turn_of(react_to.character_id)
+            latest_opposing = react_turn.text if react_turn else ""
+            latest_opposing_tag = react_to.contention_tag
+            latest_opposing_name = react_to.display_name
+        else:
+            opposing_turn = self._latest_opposing_turn(speaker.character_id)
+            # Fall back to the immediately preceding turn so a speaker always has
+            # something concrete to react to (keeps the exchange a back-and-forth).
+            react_turn = opposing_turn or (
+                self.transcript.turns[-1] if self.transcript.turns else None
+            )
+            latest_opposing = react_turn.text if react_turn else ""
+            latest_opposing_tag = react_turn.contention_tag if react_turn else None
+            latest_opposing_name = react_turn.speaker_name if react_turn else ""
+        if greet:
+            objective = "greet your opponent first, then " + objective
         prior_texts = [t.text for t in self.transcript.turns]
 
         text = ""
@@ -169,7 +212,7 @@ class DebateRunner:
             text=text,
             contention_tag=speaker.contention_tag if speaker.role.value == "challenger" else None,
             objective=objective,
-            scene_cue=cue_for(state, speaker.role),
+            scene_cue=scene_cue or cue_for(state, speaker.role),
         )
         self.transcript.turns.append(turn)
         self.memory.record(speaker.character_id, turn.word_count, f"{speaker.display_name}: {text[:60]}")
@@ -177,6 +220,12 @@ class DebateRunner:
             self.memory.unresolved_claims.append(f"{speaker.contention_tag}: {text[:60]}")
         self.memory.rolling_summary = self._summarise()
         self._counter += 1
+
+    def _last_turn_of(self, speaker_id: str):
+        for turn in reversed(self.transcript.turns):
+            if turn.speaker_id == speaker_id:
+                return turn
+        return None
 
     def _latest_opposing_turn(self, speaker_id: str):
         speaker = self.cast.by_id(speaker_id)

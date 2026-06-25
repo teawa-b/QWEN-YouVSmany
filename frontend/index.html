@@ -205,10 +205,17 @@
 const PALETTE = ["#f0997b","#5dcaa5","#d4537e","#efbf4f","#85b7eb"];
 const ACCENT = "#7b97ff", MOD = "#8a93a3";
 
-// When the page is served over http(s) relative URLs work; when it is opened
-// directly as a file:// the API has no origin to resolve against, so fall back
-// to a local server (CORS is enabled on the API for exactly this case).
-const API_BASE = /^https?:$/.test(location.protocol) ? "" : "http://127.0.0.1:8000";
+// Configure a separate backend with:
+//   frontend/index.html?api=https://your-api.example.com
+//   window.YVM_API_BASE = "https://your-api.example.com"
+//   localStorage.setItem("YVM_API_BASE", "https://your-api.example.com")
+const API_BASE = (() => {
+  const params = new URLSearchParams(location.search);
+  const configured = params.get("api") || window.YVM_API_BASE || localStorage.getItem("YVM_API_BASE");
+  if(configured) return configured.replace(/\/+$/, "");
+  const local = location.protocol === "file:" || ["localhost","127.0.0.1",""].includes(location.hostname);
+  return local ? "http://127.0.0.1:8000" : "";
+})();
 const api = path => API_BASE + path;
 
 // ---- brand logo: YOU VS MANY with a dotted-spiral O ----

@@ -12,11 +12,8 @@ Media endpoints (captures/images/videos/package) belong to later phases.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from youvsmany.adapters.mock_provider import MockProvider
@@ -29,17 +26,13 @@ from youvsmany.store import EpisodeStore
 
 app = FastAPI(title="You Vs Many — Debate Intelligence", version="0.1.0")
 
-# The frontend is served same-origin, but allow CORS so the UI can also run
-# from a separate dev server if desired.
+# The frontend is hosted separately, so allow browser clients from other origins.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-_WEB_DIR = Path(__file__).resolve().parents[3] / "web"
-
 
 def _store() -> EpisodeStore:
     return EpisodeStore(get_settings().run_dir)
@@ -90,8 +83,8 @@ class RunBody(BaseModel):
 
 
 @app.get("/")
-def index() -> FileResponse:
-    return FileResponse(_WEB_DIR / "index.html")
+def index() -> dict:
+    return {"status": "ok", "service": "youvsmany-api", "docs": "/docs", "health": "/health"}
 
 
 @app.get("/health")

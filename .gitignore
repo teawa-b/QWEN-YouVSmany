@@ -18,7 +18,13 @@ venv/
 
 # Episode artifacts written at runtime
 /runs/
+/backend/runs/
 /.artifacts/
+/backend/.artifacts/
+
+# Frontend build outputs if a bundler is added later
+/frontend/dist/
+/frontend/build/
 
 # OS / editor
 .DS_Store

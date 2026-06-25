@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from youvsmany.adapters.factory import build_provider
+from youvsmany.adapters.mock_provider import MockProvider
 from youvsmany.agents import orchestrator
 from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
@@ -43,6 +43,11 @@ _WEB_DIR = Path(__file__).resolve().parents[3] / "web"
 
 def _store() -> EpisodeStore:
     return EpisodeStore(get_settings().run_dir)
+
+
+def _provider() -> MockProvider:
+    """Pin the web app to deterministic mock generation while the UI is refined."""
+    return MockProvider()
 
 
 def _episode_view(ep) -> dict:
@@ -91,14 +96,14 @@ def index() -> FileResponse:
 
 @app.get("/health")
 def health() -> dict:
-    s = get_settings()
-    return {"status": "ok", "provider": s.provider, "model": s.qwen_text_model}
+    provider = _provider()
+    return {"status": "ok", "provider": provider.name, "model": provider.model}
 
 
 @app.post("/episodes/run")
 def run_episode(body: RunBody) -> dict:
     """One-shot: brief -> prepare -> debate -> lock, returning the full episode."""
-    provider = build_provider()
+    provider = _provider()
     try:
         ep = orchestrator.run_full(
             body.brief, provider=provider, suggested_tags=body.suggested_tags
@@ -111,7 +116,7 @@ def run_episode(body: RunBody) -> dict:
 
 @app.post("/episodes")
 def create_episode(brief: ShowBrief) -> dict:
-    provider = build_provider()
+    provider = _provider()
     try:
         ep = orchestrator.create_episode(brief, provider=provider)
     except SafetyRejected as e:
@@ -124,7 +129,7 @@ def create_episode(brief: ShowBrief) -> dict:
 def prepare(episode_id: str, body: PrepareBody | None = None) -> dict:
     store = _store()
     ep = _load(store, episode_id)
-    provider = build_provider()
+    provider = _provider()
     orchestrator.prepare_episode(
         ep, provider=provider, suggested_tags=(body.suggested_tags if body else None)
     )
@@ -141,7 +146,7 @@ def prepare(episode_id: str, body: PrepareBody | None = None) -> dict:
 def debate(episode_id: str) -> dict:
     store = _store()
     ep = _load(store, episode_id)
-    orchestrator.run_debate(ep, provider=build_provider())
+    orchestrator.run_debate(ep, provider=_provider())
     store.save(ep)
     return {"episode_id": ep.episode_id, "state": ep.state, "turns": len(ep.transcript.turns)}
 

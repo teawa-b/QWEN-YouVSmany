@@ -1,8 +1,9 @@
 import { createReadStream, existsSync, readFileSync } from "node:fs";
-import { extname, join, normalize } from "node:path";
+import { dirname, extname, join, normalize } from "node:path";
 import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
 
-const root = process.cwd();
+const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 5173);
 
 const types = {

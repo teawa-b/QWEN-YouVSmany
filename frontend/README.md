@@ -27,3 +27,18 @@ window.YVM_API_BASE = "https://your-api.example.com";
 ```js
 localStorage.setItem("YVM_API_BASE", "https://your-api.example.com");
 ```
+
+## Railway
+
+Create a Railway service from the repo with:
+
+```text
+Root Directory: /frontend
+Railway Config File: /frontend/railway.toml
+```
+
+Set this variable on the frontend service after the backend has a public domain:
+
+```text
+YVM_API_BASE=https://your-backend-domain.up.railway.app
+```

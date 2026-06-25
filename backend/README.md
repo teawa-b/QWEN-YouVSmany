@@ -27,3 +27,15 @@ pytest -q
 
 The web API is currently pinned to the deterministic mock provider while the UI
 is being refined.
+
+## Railway
+
+Create a Railway service from the repo with:
+
+```text
+Root Directory: /backend
+Railway Config File: /backend/railway.toml
+```
+
+The start command is defined in `railway.toml` and binds Uvicorn to Railway's
+`$PORT`.

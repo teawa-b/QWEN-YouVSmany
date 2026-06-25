@@ -89,6 +89,31 @@ localStorage.setItem("YVM_API_BASE", "https://your-api.example.com");
 The backend has permissive CORS enabled for now so the separately hosted
 frontend can call it.
 
+## Railway Hosting
+
+This repo is ready for two Railway services from the same GitHub repo:
+
+```text
+backend service
+  Root Directory: /backend
+  Railway Config File: /backend/railway.toml
+
+frontend service
+  Root Directory: /frontend
+  Railway Config File: /frontend/railway.toml
+```
+
+After Railway gives the backend service a public domain, set this on the
+frontend service:
+
+```text
+YVM_API_BASE=https://your-backend-domain.up.railway.app
+```
+
+The frontend runtime server emits `config.js`, which sets `window.YVM_API_BASE`
+from that variable. The browser then calls the hosted backend for `/health` and
+`/episodes/run`.
+
 ## Provider Setup
 
 The backend supports live Qwen or offline mock through the provider layer. The

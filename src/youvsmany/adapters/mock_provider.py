@@ -132,6 +132,44 @@ _CONTENTION_LIB: dict[str, dict[str, Any]] = {
     },
 }
 
+_GENERIC_CONTENTION_LIB: dict[str, dict[str, Any]] = {
+    "framing": {
+        "contention": "{topic} dodges what the words actually mean",
+        "points": ["the first real example", "changing the definition", "ancestor versus finished thing"],
+        "opening": "force a plain definition before the answer",
+        "counter": "narrowing the claim is not dodging it",
+        "rebuttal": "a moving definition dodges the question",
+    },
+    "evidence": {
+        "contention": "{topic} has not met the burden of proof",
+        "points": ["the missing proof", "the jump from story to evidence", "the claim everyone repeats"],
+        "opening": "ask what evidence would actually settle it",
+        "counter": "ordinary reasoning can still carry it",
+        "rebuttal": "confidence is not evidence",
+    },
+    "consequences": {
+        "contention": "{topic} creates the wrong lesson if people accept it casually",
+        "points": ["the lesson people take", "the messy case", "calling the question settled"],
+        "opening": "press the real-world stakes of accepting the claim",
+        "counter": "the answer does not depend on life lessons",
+        "rebuttal": "bad reasoning still matters even on a playful topic",
+    },
+    "edge-cases": {
+        "contention": "{topic} breaks once the awkward cases show up",
+        "points": ["the awkward exception", "the borderline case", "the simple answer breaking"],
+        "opening": "bring the awkward exception into the room",
+        "counter": "exceptions can define the boundary",
+        "rebuttal": "a boundary that only works after exceptions is too convenient",
+    },
+    "values": {
+        "contention": "{topic} rewards the wrong standard",
+        "points": ["being technically right", "clarity versus cleverness", "the reasoning it normalizes"],
+        "opening": "ask what standard the audience should reward",
+        "counter": "clarity and accuracy can point the same way",
+        "rebuttal": "clever accuracy can still mislead people",
+    },
+}
+
 _GENERIC_TAGS = ["framing", "evidence", "consequences", "edge-cases", "values"]
 
 
@@ -143,12 +181,14 @@ def _hash_float(parts: str) -> float:
 def _lib_for(tag: str) -> dict[str, Any]:
     if tag in _CONTENTION_LIB:
         return _CONTENTION_LIB[tag]
+    if tag in _GENERIC_CONTENTION_LIB:
+        return _GENERIC_CONTENTION_LIB[tag]
     return {
-        "contention": f"{{topic}} is weak on {tag}",
-        "points": [f"{tag} gap A", f"{tag} gap B", f"{tag} gap C"],
-        "opening": f"press the {tag} angle",
-        "counter": f"the {tag} concern is overblown",
-        "rebuttal": f"the {tag} concern survives scrutiny",
+        "contention": f"{{topic}} has a weak spot around {tag}",
+        "points": [f"the hard {tag} example", f"the overlooked {tag} tradeoff", f"the messy {tag} exception"],
+        "opening": f"press the concrete {tag} example",
+        "counter": f"the {tag} concern narrows the claim but does not erase it",
+        "rebuttal": f"the {tag} concern still deserves a direct answer",
     }
 
 
@@ -280,11 +320,11 @@ class MockProvider:
                 {
                     "challenger_id": f"challenger_{t}",
                     "contention_tag": t,
-                    "objective": f"introduce the distinct {t} objection and get a direct reply",
+                    "objective": f"run a two-pass mini-duel on the concrete {t} objection",
                 }
                 for t in tags
             ],
-            "rapid_rebuttal_objective": "short, sharp exchanges that surface the real disagreement",
+            "rapid_rebuttal_objective": "urgent follow-ups only when the cast is too small",
             "closing_objective": "summarise concessions and the unresolved core",
             "target_turns": int(params.get("target_turns", 16)),
         }
@@ -295,11 +335,26 @@ class MockProvider:
         name = params.get("speaker_name", "Speaker")
         tag = params.get("contention_tag")
         opp_tag = params.get("opposing_tag")
+        opp_name = params.get("opposing_name") or "you"
+        objective = params.get("objective", "")
+        latest = params.get("latest_opposing_claim", "")
         topic = params.get("topic", "the proposition")
         lo, hi = (params.get("length_range") or [18, 40])
         jitter = _hash_float(f"{name}{state}{tag}{opp_tag}{seed}{params.get('index')}")
         target_words = int(lo + (hi - lo) * jitter)
-        text = _line(state, role, name, tag, opp_tag, topic, target_words, jitter)
+        text = _line(
+            state,
+            role,
+            name,
+            tag,
+            opp_tag,
+            opp_name,
+            objective,
+            latest,
+            topic,
+            target_words,
+            jitter,
+        )
         return {"text": text}
 
 
@@ -326,18 +381,12 @@ def _clip_words(text: str, target: int) -> str:
     words = text.split()
     if len(words) <= target:
         return text
+    floor = max(6, target - 7)
+    for end in range(min(target, len(words)), floor - 1, -1):
+        if words[end - 1].endswith((".", "?", "!")):
+            return " ".join(words[:end])
     out = " ".join(words[:target])
     return out.rstrip(",;:") + "."
-
-
-# Protagonist rebuttal templates, varied by the objection being answered so the
-# protagonist does not recite one stock line (keeps the repetition metric honest).
-_PROTA_REBUTTALS = [
-    "On {otag}, I'll grant the narrow case — but the {otag} worry doesn't reach the core of {short}.",
-    "The {otag} objection is the strongest one here, and it still only dents the edge, not {short}.",
-    "Fair on {otag}; yet fix that one detail and {short} holds exactly as I framed it.",
-    "I hear the {otag} point, but it proves a limit, not a refutation — {short} survives it.",
-]
 
 
 def _short_topic(topic: str) -> str:
@@ -346,40 +395,115 @@ def _short_topic(topic: str) -> str:
     return t[:1].lower() + t[1:] if t else "the case"
 
 
-def _line(state, role, name, tag, opp_tag, topic, target_words, jitter) -> str:
+# Humanized turn templates. These keep the offline provider close to the intended
+# live Qwen behavior.
+_PROTA_REBUTTALS = [
+    "{opp}, I hear that, but {counter}. That does not kill the claim.",
+    "No, {opp}, that is not a dodge. {counter_cap}.",
+    "That is the hard case, {opp}. Still, {counter}, so the core survives.",
+    "Fine, the edge is messy. But {counter}, so I am not backing off.",
+]
+
+_PROTA_PUSHBACKS = [
+    "Then show why that changes the answer, {opp}. I do not think it does.",
+    "That is the point, {opp}: reality is not always clean.",
+    "I am not hiding from {point}. I am saying it narrows the answer.",
+]
+
+_CHALLENGER_OPENERS = [
+    "{opp}, that sounds tidy, but {point} breaks it. Are you brushing that aside?",
+    "Hold on, {opp}. {point_cap} is the problem, not a footnote.",
+    "You make this sound obvious, {opp}, but {point} is the hard part.",
+]
+
+_CHALLENGER_PUSHBACKS = [
+    "No, {opp}, that is the dodge. You left {point} sitting there.",
+    "That still does not land, {opp}. If {point} matters, your answer is too neat.",
+    "Come on, {opp}. Calling it messy does not explain {point}.",
+]
+
+_RAPID_LINES = [
+    "{opp}, yes or no: if {point} is true, why should anyone buy your answer?",
+    "Quickly, {opp}: deal with {point} without changing the question.",
+    "Then answer the actual pressure point, {opp}: {point}.",
+]
+
+
+def _clean_sentence(text: str) -> str:
+    if not text:
+        return ""
+    return text[:1].upper() + text[1:].rstrip(".")
+
+
+def _pick(items: list[str], jitter: float) -> str:
+    return items[int(jitter * len(items)) % len(items)]
+
+
+def _line(
+    state,
+    role,
+    name,
+    tag,
+    opp_tag,
+    opp_name,
+    objective,
+    latest,
+    topic,
+    target_words,
+    jitter,
+) -> str:
     lib = _lib_for(tag) if tag else None
+    opp_lib = _lib_for(opp_tag) if opp_tag else None
     short = _short_topic(topic)
-    otag = opp_tag or "that objection"
+    otag = opp_tag or "that point"
+    if lib:
+        point = lib["points"][int(jitter * len(lib["points"])) % len(lib["points"])]
+    else:
+        point = otag
+    if opp_lib and role == "protagonist":
+        point = opp_lib["points"][int(jitter * len(opp_lib["points"])) % len(opp_lib["points"])]
+    source_lib = opp_lib if role == "protagonist" and opp_lib else lib or _lib_for(otag)
+    counter = source_lib["counter"]
+    rebuttal = source_lib["rebuttal"]
+    point_cap = _clean_sentence(point)
+    counter_cap = _clean_sentence(counter)
+
     if role == "moderator":
         if state == "CLOSING":
-            base = "Time. Closing statements now — one tight summary, no new arguments."
+            base = "Time. Closings now - no new arguments."
         else:
-            base = (
-                f"Let's keep this fair. On {otag}: one clear claim, one direct answer, "
-                f"no reusing ground we've covered."
-            )
+            base = f"Keep it tight. {name} wants one direct answer on {otag}, then we move."
     elif role == "protagonist":
         if state == "OPENING":
             base = (
-                f"My position is simple: {topic}. I'll define terms, lead with the strongest "
-                f"reason, and meet every serious objection head on."
+                f"I am taking the side that {short}. Not as a slogan - I think the cleanest "
+                f"definition and the strongest example point there."
             )
         elif state == "CLOSING":
             base = (
-                f"To close: {short} still stands. I conceded the smallest point honestly, "
-                f"but the core held against every distinct objection."
+                f"Closing it out: {short} still holds. The others found messy edges, but not "
+                f"a better answer to the main question."
+            )
+        elif "pushback" in objective or "narrowest" in objective:
+            tmpl = _pick(_PROTA_PUSHBACKS, jitter)
+            base = tmpl.format(
+                opp=opp_name,
+                counter=counter,
+                counter_cap=counter_cap,
+                point=point,
+                short=short,
             )
         else:
-            tmpl = _PROTA_REBUTTALS[int(jitter * len(_PROTA_REBUTTALS)) % len(_PROTA_REBUTTALS)]
-            base = tmpl.format(otag=otag, short=short)
-    else:  # challenger
-        contention = lib["contention"].format(topic=short) if lib else f"{short} is weak on {tag}"
-        point = (lib["points"][int(jitter * len(lib["points"]))] if lib else tag)
+            tmpl = _pick(_PROTA_REBUTTALS, jitter)
+            base = tmpl.format(opp=opp_name, counter=counter, counter_cap=counter_cap, short=short)
+    else:
         if state == "RAPID_REBUTTAL":
-            base = f"Still on {tag}: {point} is the crack, and you haven't closed it. Answer directly."
+            tmpl = _pick(_RAPID_LINES, jitter)
+            base = tmpl.format(opp=opp_name, point=point)
+        elif "push" in objective:
+            tmpl = _pick(_CHALLENGER_PUSHBACKS, jitter)
+            base = tmpl.format(opp=opp_name, point=point, point_cap=point_cap, rebuttal=rebuttal)
         else:
-            base = (
-                f"My objection is {tag}: {contention}. Concretely, {point} — that's where "
-                f"the argument breaks."
-            )
+            tmpl = _pick(_CHALLENGER_OPENERS, jitter)
+            base = tmpl.format(opp=opp_name, point=point, point_cap=point_cap, rebuttal=rebuttal)
     return _clip_words(base, max(8, target_words))

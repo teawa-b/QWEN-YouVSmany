@@ -44,3 +44,19 @@ def test_distinct_contentions():
     ep = _run()
     tags = [c.contention_tag for c in ep.cast.challengers]
     assert len(set(tags)) == len(tags)
+
+
+def test_contentions_are_sequential_mini_duels_without_canned_labels():
+    ep = _run(topic="the chicken came before egg", tags=("framing", "evidence", "consequences"))
+    contentions = [t for t in ep.transcript.turns if t.state == DebateState.CONTENTIONS]
+    ids = [t.speaker_id for t in contentions]
+
+    protagonist_id = ep.cast.protagonist.character_id
+    expected = []
+    for challenger in ep.cast.challengers:
+        expected.extend([challenger.character_id, protagonist_id, challenger.character_id, protagonist_id])
+    assert ids == expected
+
+    transcript_text = " ".join(t.text for t in ep.transcript.turns)
+    forbidden = ["My objection is", "gap A", "gap B", "weak on", "I'll grant"]
+    assert not any(phrase in transcript_text for phrase in forbidden)

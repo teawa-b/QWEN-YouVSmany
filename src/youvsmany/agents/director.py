@@ -31,11 +31,12 @@ def build_round_plan(
             "seed": seed,
         },
         system=(
-            "You are the Director. Lay out the round structure: opening claim, one "
-            "contention round per challenger, a rapid-rebuttal round, and a closing "
-            "summary. Create exactly one contention slot per challenger, copying its "
-            "challenger_id and contention_tag VERBATIM from the list provided. Return "
-            "JSON matching RoundPlan."
+            "You are the Director. Lay out the round structure for a natural "
+            "one-vs-many debate: opening claim, then one challenger at a time in a "
+            "mini-duel with the protagonist, then optional rapid pressure only if the "
+            "cast is too small, and a closing summary. Create exactly one contention "
+            "slot per challenger, copying its challenger_id and contention_tag VERBATIM "
+            "from the list provided. Return JSON matching RoundPlan."
         ),
         instruction=(
             f"Topic: {brief.topic!r}. Build one contention slot for each of these "

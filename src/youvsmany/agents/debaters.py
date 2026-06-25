@@ -1,7 +1,7 @@
 """Performance agents: protagonist + challenger turn generation (blueprint 4.6).
 
 Each speaking agent receives only compact, role-specific context: its own
-private notes, the latest opposing claim, the director's objective — never the
+private notes, the latest opposing claim, the director's objective - never the
 whole transcript."""
 
 from __future__ import annotations
@@ -55,14 +55,14 @@ def generate_turn(
     private_ctx = ""
     if strat:
         private_ctx = (
-            f" Your private game plan (do NOT read it aloud) — opening angle: {strat.opening}; "
+            f" Your private game plan (do NOT read it aloud) - opening angle: {strat.opening}; "
             f"go-to rebuttal: {strat.rebuttal}; main points: {', '.join(strat.main_points)}."
         )
 
     if speaker.role == Role.MODERATOR:
         system = (
             f"You are {speaker.display_name}, the moderator of a fast, punchy one-vs-many "
-            f"debate show (think a televised panel). Keep order in a natural, human voice — "
+            f"debate show (think a televised panel). Keep order in a natural, human voice - "
             f"never robotic. Push the speakers to answer the actual question. "
             f"{length_range[0]}-{length_range[1]} words, one or two sentences. "
             f'Return JSON: {{"text": ...}}.'
@@ -71,16 +71,18 @@ def generate_turn(
         system = (
             f"You are {speaker.display_name}, the {speaker.role.value} in a live one-vs-many "
             f"debate on {topic!r} (a Jubilee 'Surrounded'-style show). You're spirited, sharp "
-            f"and conversational — real spoken English, contractions, personality "
+            f"and conversational - real spoken English, contractions, personality "
             f"(tone: {speaker.personality.tone}). This is a back-and-forth, not a speech.\n"
             f"RULES:\n"
-            f"- React to what {opp} JUST said: name the specific words or claim, then hit back.\n"
-            f"- Sometimes address them by name ({opp}). Be direct, even a little pointed.\n"
-            f"- Bring ONE concrete example, number, or scenario — never abstract filler.\n"
-            f"- Your angle is {speaker.contention_tag}; stay on it, don't drift to other objections.\n"
+            f"- React to what {opp} JUST said: paraphrase their actual claim, then hit back.\n"
+            f"- Sometimes address them by name ({opp}). Be direct, annoyed if needed, but civil.\n"
+            f"- Bring ONE concrete example, number, everyday scenario, or hard question. No abstract filler.\n"
+            f"- Your hidden angle is {speaker.contention_tag}; translate it into normal words, "
+            f"do not announce the label aloud.\n"
             f"- NEVER use canned stems like 'My objection is...' or 'On {speaker.contention_tag}, "
             f"I'll grant...'. Open differently every time. Sound like a person, not a template.\n"
-            f"- HARD LIMIT {length_range[1]} words. One or two short sentences, ONE sharp point — "
+            f"- Keep the heat of a real argument: short questions, clipped pushback, plain language.\n"
+            f"- HARD LIMIT {length_range[1]} words. One or two short sentences, ONE sharp point - "
             f"a quick televised exchange, never a monologue or a list. Respect: "
             f"{', '.join(speaker.boundaries)}.\n"
             f'Return JSON: {{"text": ...}}.' + private_ctx
@@ -89,7 +91,7 @@ def generate_turn(
     if latest_opposing_claim:
         reactor = (
             f'{opp} just said: "{latest_opposing_claim}"\n'
-            f"Answer THAT directly — quote or paraphrase their point, then counter it. "
+            f"Answer THAT directly - paraphrase their point, then counter it. "
         )
     else:
         reactor = ""

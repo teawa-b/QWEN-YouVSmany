@@ -22,6 +22,8 @@ from youvsmany.contracts.transcript import Transcript, Turn
 
 REPETITION_THRESHOLD = 0.6
 MAX_REGEN_PER_TURN = 2  # retry cap when a turn is repetitive
+MIN_LOCKED_TURNS = 12
+MAX_LOCKED_TURNS = 24
 
 
 class DebateRunner:
@@ -61,22 +63,50 @@ class DebateRunner:
         for slot in self.plan.contentions:
             challenger = self.cast.by_id(slot.challenger_id)
             self.memory.covered_contentions.append(slot.contention_tag)
-            self._emit(challenger, DebateState.CONTENTIONS, slot.objective)
+            self._emit(
+                challenger,
+                DebateState.CONTENTIONS,
+                f"challenge the protagonist on {slot.contention_tag} with one concrete pressure point",
+            )
             self._emit(
                 self.cast.protagonist,
                 DebateState.CONTENTIONS,
-                f"answer the {slot.contention_tag} objection directly",
+                f"answer the {slot.contention_tag} objection directly and keep it conversational",
+            )
+            self._emit(
+                challenger,
+                DebateState.CONTENTIONS,
+                f"push back on the exact answer about {slot.contention_tag}; raise the heat, no new topic",
+            )
+            self._emit(
+                self.cast.protagonist,
+                DebateState.CONTENTIONS,
+                f"reply to the pushback on {slot.contention_tag}; concede only the narrowest fair point",
             )
 
     def _do_rapid_rebuttal(self) -> None:
-        # Short alternating exchanges; moderator forces a disputed question.
-        for slot in self.plan.contentions[:2]:
+        # Top up short casts with extra pressure while preserving one-at-a-time duels.
+        closing_turns = 2
+        needed = MIN_LOCKED_TURNS - len(self.transcript.turns) - closing_turns
+        if needed <= 0:
+            return
+
+        slots = self.plan.contentions or []
+        idx = 0
+        while needed > 0 and slots:
+            if len(self.transcript.turns) + closing_turns + 2 > MAX_LOCKED_TURNS:
+                break
+            slot = slots[idx % len(slots)]
             challenger = self.cast.by_id(slot.challenger_id)
-            self._emit_moderator(
-                director.disputed_question(slot.contention_tag, self.topic)
+            objective = director.disputed_question(slot.contention_tag, self.topic)
+            self._emit(
+                challenger,
+                DebateState.RAPID_REBUTTAL,
+                f"one urgent follow-up: {objective}",
             )
-            self._emit(challenger, DebateState.RAPID_REBUTTAL, "one sharp sentence")
-            self._emit(self.cast.protagonist, DebateState.RAPID_REBUTTAL, "one sharp answer")
+            self._emit(self.cast.protagonist, DebateState.RAPID_REBUTTAL, "one sharp direct answer")
+            needed -= 2
+            idx += 1
 
     def _do_closing(self) -> None:
         self._emit_moderator("invite closing statements")

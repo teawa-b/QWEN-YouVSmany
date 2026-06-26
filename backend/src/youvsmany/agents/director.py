@@ -88,12 +88,19 @@ def claim_objective(ordinal: str, tag: str, topic: str) -> str:
     )
 
 
-def voted_out_objective(challenger_name: str) -> str:
-    """Moderator beat that ends a one-on-one duel and resets the seat."""
-    return (
-        f"Close this duel: tell {challenger_name} they've been voted out by the "
-        f"majority and to return to their seat. Warm, quick, ritual — no new argument."
-    )
+# Non-spoken caption that ends a one-on-one duel and resets the seat. With no
+# moderator voice, the gavel is an on-screen ritual beat, not a spoken turn.
+_VOTED_OUT_CAPTIONS = (
+    "{name} is voted out — back to the bench.",
+    "The majority votes {name} out. Seat reset.",
+    "{name} is sent back to their seat.",
+    "Voted out: {name} returns to the bench.",
+)
+
+
+def voted_out_caption(challenger_name: str, index: int) -> str:
+    """Ritual caption text shown when a challenger is voted out (no speaker)."""
+    return _VOTED_OUT_CAPTIONS[index % len(_VOTED_OUT_CAPTIONS)].format(name=challenger_name)
 
 
 CEILING_TURNS = 24
@@ -111,7 +118,7 @@ def segment_passes(num_segments: int, target_turns: int) -> list[int]:
     whenever the whole run still fits under the locked 24-turn ceiling, then add
     further passes round-robin toward the director's target."""
     n = max(1, num_segments)
-    fixed = 1 + 2  # opening + (moderator invite + protagonist close)
+    fixed = 1 + 1  # opening + protagonist closing (no moderator turns)
 
     def total(ps: list[int]) -> int:
         return fixed + sum(2 + p * 2 for p in ps)

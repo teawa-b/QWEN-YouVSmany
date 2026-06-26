@@ -32,17 +32,17 @@ def build_cast(
         system=(
             "You are the Character Builder. Invent one protagonist and "
             f"{brief.num_challengers} challengers whose objections differ in SUBSTANCE, "
-            "not just personality, plus a neutral moderator. Each gets a distinct "
-            "contention_tag. Return JSON matching the Cast schema "
-            "{protagonist, challengers[], moderator}."
+            "not just personality. Each gets a distinct contention_tag. There is no "
+            "moderator — the cast is only the debating voices. Return JSON matching the "
+            "Cast schema {protagonist, challengers[]}."
         ),
         instruction=(
             f"Topic: {brief.topic!r}. Protagonist argues {brief.protagonist_position.value}. "
             f"Tone: {brief.tone}."
         ),
     )
-    # Cast is the largest structured output (protagonist + N challengers +
-    # moderator, each with nested fields), so it needs a generous token budget.
+    # Cast is the largest structured output (protagonist + N challengers, each
+    # with nested fields), so it needs a generous token budget.
     cast, result, retries = complete_structured(
         provider, messages, Cast, temperature=0.7, seed=seed, max_tokens=4096
     )

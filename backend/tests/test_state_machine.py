@@ -2,6 +2,8 @@ from youvsmany.adapters import MockProvider
 from youvsmany.agents import orchestrator
 from youvsmany.contracts.brief import ShowBrief
 from youvsmany.contracts.enums import DebateState
+from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID
+from youvsmany.evals.metrics import score_episode
 
 
 def _run(seed=0, topic="Pineapple belongs on pizza", tags=("texture", "tradition", "culinary-innovation")):
@@ -24,6 +26,18 @@ def test_exit_criterion_and_duration():
     assert 12 <= len(ep.transcript.turns) <= 24
     assert 55.0 <= ep.transcript.total_duration_s <= 130.0
     assert len(ep.highlights) >= 3
+
+
+def test_cast_is_protagonist_plus_challengers_only():
+    ep = _run()
+    # No moderator voice: the cast is 1 main + N opposing, and the only "speakers"
+    # in the transcript are those debating voices (captions don't count).
+    assert ep.cast.moderator is None
+    assert len(ep.cast.all_speakers()) == 1 + len(ep.cast.challengers)
+    spoken = {t.speaker_id for t in ep.transcript.turns if t.speaker_id != CAPTION_SPEAKER_ID}
+    assert spoken == {c.character_id for c in ep.cast.all_speakers()}
+    # The scored metric counts the same debating voices, captions excluded.
+    assert score_episode(ep).distinct_speakers == 1 + len(ep.cast.challengers)
 
 
 def test_dominance_cap_no_three_in_a_row():
@@ -64,7 +78,6 @@ def _claim_segments(ep):
 def test_claim_segments_follow_surrounded_rhythm():
     ep = _run(topic="the chicken came before egg", tags=("framing", "evidence", "consequences"))
     protagonist_id = ep.cast.protagonist.character_id
-    moderator_id = ep.cast.moderator.character_id
 
     segments = _claim_segments(ep)
     # One claim segment per challenger, in cast order.
@@ -78,10 +91,12 @@ def test_claim_segments_follow_surrounded_rhythm():
         ordinal = "first claim" if seg_index == 0 else "next claim"
         assert ordinal in head.text.lower()
 
-        # Closes on the moderator voting the challenger out, by name.
+        # Closes on a non-spoken voted-out caption naming the challenger — no
+        # moderator voice, just the on-screen ritual beat.
         tail = segment[-1]
         assert tail.scene_cue == "voted_out"
-        assert tail.speaker_id == moderator_id
+        assert tail.speaker_id == CAPTION_SPEAKER_ID
+        assert tail.speaker_name == ""
         assert challenger.display_name in tail.text
 
         # The duel in between is a strict one-on-one: challenger then protagonist,

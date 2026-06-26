@@ -60,14 +60,22 @@ class Character(BaseModel):
 
 
 class Cast(BaseModel):
-    """1 protagonist + N challengers + 1 moderator (blueprint 3.3)."""
+    """1 protagonist + N challengers (blueprint 3.3).
+
+    The cast is just the debating voices. The "Surrounded" host beats (the
+    voted-out gavel, the closing handoff) are rendered as non-spoken captions,
+    so a moderator is no longer a speaker; the field is kept optional only for
+    back-compat with older manifests."""
 
     protagonist: Character
     challengers: list[Character]
-    moderator: Character
+    moderator: Character | None = None
 
     def all_speakers(self) -> list[Character]:
-        return [self.protagonist, *self.challengers, self.moderator]
+        speakers = [self.protagonist, *self.challengers]
+        if self.moderator is not None:
+            speakers.append(self.moderator)
+        return speakers
 
     def by_id(self, character_id: str) -> Character:
         for c in self.all_speakers():

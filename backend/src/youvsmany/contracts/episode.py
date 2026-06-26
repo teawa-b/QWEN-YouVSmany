@@ -15,6 +15,7 @@ from youvsmany.contracts.enums import DebateState
 from youvsmany.contracts.highlights import HighlightCandidate
 from youvsmany.contracts.memory import EpisodeMemory
 from youvsmany.contracts.plan import RoundPlan
+from youvsmany.contracts.scene import SceneManifest
 from youvsmany.contracts.transcript import Transcript
 
 
@@ -49,6 +50,9 @@ class Episode(BaseModel):
     transcript: Transcript = Field(default_factory=Transcript)
     memory: EpisodeMemory = Field(default_factory=EpisodeMemory)
     highlights: list[HighlightCandidate] = Field(default_factory=list)
+
+    # Phase 2: renderer-neutral staging plan + master audio timeline.
+    scene_manifest: SceneManifest | None = None
 
     run_report: RunReport = Field(default_factory=RunReport)
     approved: bool = False

@@ -572,6 +572,800 @@
       "summary": "Tom: Name the case where contrast collapse actually f / : Iris is voted out — back to the bench. / Tom: My next claim is that traditions evolve with tas / Mara: Hey, good to meet you. You make this sound obvio"
     }
   ],
+  "scene_manifest": {
+    "episode_id": "ep_3572c6af",
+    "stage": {
+      "marks": [
+        {
+          "character_id": "protagonist",
+          "role": "protagonist",
+          "mark": "center",
+          "position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 2.0
+          },
+          "face_to": "camera"
+        },
+        {
+          "character_id": "challenger_texture",
+          "role": "challenger",
+          "mark": "arc_1",
+          "position": {
+            "x": -1.5,
+            "y": 0.0,
+            "z": -0.5
+          },
+          "face_to": "protagonist"
+        },
+        {
+          "character_id": "challenger_tradition",
+          "role": "challenger",
+          "mark": "arc_2",
+          "position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": -0.5
+          },
+          "face_to": "protagonist"
+        },
+        {
+          "character_id": "challenger_culinary-innovation",
+          "role": "challenger",
+          "mark": "arc_3",
+          "position": {
+            "x": 1.5,
+            "y": 0.0,
+            "z": -0.5
+          },
+          "face_to": "protagonist"
+        }
+      ],
+      "camera_anchors": [
+        {
+          "name": "wide_master",
+          "shot": "wide_master",
+          "position": {
+            "x": 0.0,
+            "y": 1.6,
+            "z": 6.0
+          },
+          "look_at": "stage_center"
+        },
+        {
+          "name": "protagonist_close",
+          "shot": "protagonist_close",
+          "position": {
+            "x": 0.0,
+            "y": 1.6,
+            "z": 3.6
+          },
+          "look_at": "protagonist"
+        },
+        {
+          "name": "reaction",
+          "shot": "reaction",
+          "position": {
+            "x": 1.0,
+            "y": 1.9,
+            "z": 4.5
+          },
+          "look_at": "stage_center"
+        },
+        {
+          "name": "two_shot",
+          "shot": "two_shot",
+          "position": {
+            "x": 0.8,
+            "y": 1.6,
+            "z": 4.2
+          },
+          "look_at": "stage_center"
+        },
+        {
+          "name": "challenger_close_challenger_texture",
+          "shot": "challenger_close",
+          "position": {
+            "x": -0.9,
+            "y": 1.6,
+            "z": 1.8
+          },
+          "look_at": "challenger_texture"
+        },
+        {
+          "name": "challenger_close_challenger_tradition",
+          "shot": "challenger_close",
+          "position": {
+            "x": 0.0,
+            "y": 1.6,
+            "z": 1.8
+          },
+          "look_at": "challenger_tradition"
+        },
+        {
+          "name": "challenger_close_challenger_culinary-innovation",
+          "shot": "challenger_close",
+          "position": {
+            "x": 0.9,
+            "y": 1.6,
+            "z": 1.8
+          },
+          "look_at": "challenger_culinary-innovation"
+        }
+      ],
+      "aspect_primary": "16:9",
+      "crop_guide": "9:16"
+    },
+    "segments": [
+      {
+        "segment_id": "seg_00",
+        "start_s": 0.0,
+        "end_s": 8.4,
+        "speaker_id": "protagonist",
+        "dialogue": "One of me, all of you. I am defending that pineapple belongs on pizza, claim by claim. Come change my mind.",
+        "emotion": "commanding",
+        "animation_tag": "speak_emphatic",
+        "intensity": 0.85,
+        "camera": {
+          "shot": "wide_master",
+          "anchor": "wide_master"
+        },
+        "blocking": {
+          "speaker_pose": "stand_emphatic",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "wide_establish"
+      },
+      {
+        "segment_id": "seg_01",
+        "start_s": 8.4,
+        "end_s": 13.6,
+        "speaker_id": "protagonist",
+        "dialogue": "My first claim is that sweet-salty contrast is intentional. Come change my mind.",
+        "emotion": "assertive",
+        "animation_tag": "speak_emphatic",
+        "intensity": 0.85,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "stand_emphatic",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "claim_card"
+      },
+      {
+        "segment_id": "seg_02",
+        "start_s": 13.6,
+        "end_s": 19.6,
+        "speaker_id": "challenger_texture",
+        "dialogue": "Nice to meet you. Hold on, Tom. Moisture pooling is the problem, not a footnote.",
+        "emotion": "confident_frustration",
+        "animation_tag": "challenge_lean",
+        "intensity": 0.8,
+        "camera": {
+          "shot": "challenger_close",
+          "anchor": "challenger_close_challenger_texture"
+        },
+        "blocking": {
+          "speaker_pose": "lean_forward",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "challenger_texture",
+          "protagonist"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "challenger_close"
+      },
+      {
+        "segment_id": "seg_03",
+        "start_s": 19.6,
+        "end_s": 23.2,
+        "speaker_id": "protagonist",
+        "dialogue": "Iris, I hear that. But sweet-salty contrast is intentional.",
+        "emotion": "calm_confident",
+        "animation_tag": "speak_explain",
+        "intensity": 0.55,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "speak_neutral",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_texture"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "protagonist_close"
+      },
+      {
+        "segment_id": "seg_04",
+        "start_s": 23.2,
+        "end_s": 28.0,
+        "speaker_id": "challenger_texture",
+        "dialogue": "No, Tom, that is the dodge. You left moisture pooling sitting there.",
+        "emotion": "confident_frustration",
+        "animation_tag": "challenge_lean",
+        "intensity": 0.8,
+        "camera": {
+          "shot": "challenger_close",
+          "anchor": "challenger_close_challenger_texture"
+        },
+        "blocking": {
+          "speaker_pose": "lean_forward",
+          "listeners": "attentive"
+        },
+        "required_characters": [
+          "challenger_texture",
+          "protagonist"
+        ],
+        "visual_priority": "standard",
+        "short_candidate": false,
+        "scene_cue": "challenger_close"
+      },
+      {
+        "segment_id": "seg_05",
+        "start_s": 28.0,
+        "end_s": 32.8,
+        "speaker_id": "protagonist",
+        "dialogue": "Name the case where contrast collapse actually flips it, Iris. You cannot.",
+        "emotion": "calm_confident",
+        "animation_tag": "concede_nod",
+        "intensity": 0.4,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "soften_nod",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_texture"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "protagonist_close"
+      },
+      {
+        "segment_id": "seg_06",
+        "start_s": 32.8,
+        "end_s": 36.4,
+        "speaker_id": "caption",
+        "dialogue": "Iris is voted out — back to the bench.",
+        "emotion": "ritual",
+        "animation_tag": "reaction_mixed",
+        "intensity": 0.6,
+        "camera": {
+          "shot": "reaction",
+          "anchor": "reaction"
+        },
+        "blocking": {
+          "speaker_pose": "crowd_react",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_texture",
+          "challenger_tradition",
+          "challenger_culinary-innovation"
+        ],
+        "visual_priority": "caption",
+        "short_candidate": false,
+        "scene_cue": "voted_out"
+      },
+      {
+        "segment_id": "seg_07",
+        "start_s": 36.4,
+        "end_s": 41.6,
+        "speaker_id": "protagonist",
+        "dialogue": "My next claim is that traditions evolve with taste. Come change my mind.",
+        "emotion": "assertive",
+        "animation_tag": "speak_emphatic",
+        "intensity": 0.85,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "stand_emphatic",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_texture"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "claim_card"
+      },
+      {
+        "segment_id": "seg_08",
+        "start_s": 41.6,
+        "end_s": 48.8,
+        "speaker_id": "challenger_tradition",
+        "dialogue": "Hey, good to meet you. You make this sound obvious, Tom, but craft lineage is the hard part.",
+        "emotion": "confident_frustration",
+        "animation_tag": "challenge_lean",
+        "intensity": 0.8,
+        "camera": {
+          "shot": "challenger_close",
+          "anchor": "challenger_close_challenger_tradition"
+        },
+        "blocking": {
+          "speaker_pose": "lean_forward",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "challenger_tradition",
+          "protagonist"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "challenger_close"
+      },
+      {
+        "segment_id": "seg_09",
+        "start_s": 48.8,
+        "end_s": 54.8,
+        "speaker_id": "protagonist",
+        "dialogue": "Fine, the edge is messy. But traditions evolve with taste. I am not backing off.",
+        "emotion": "calm_confident",
+        "animation_tag": "speak_explain",
+        "intensity": 0.55,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "speak_neutral",
+          "listeners": "attentive"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_tradition"
+        ],
+        "visual_priority": "standard",
+        "short_candidate": false,
+        "scene_cue": "protagonist_close"
+      },
+      {
+        "segment_id": "seg_10",
+        "start_s": 54.8,
+        "end_s": 59.2,
+        "speaker_id": "challenger_tradition",
+        "dialogue": "Come on, Tom. Calling it messy does not explain name protection.",
+        "emotion": "confident_frustration",
+        "animation_tag": "challenge_lean",
+        "intensity": 0.8,
+        "camera": {
+          "shot": "challenger_close",
+          "anchor": "challenger_close_challenger_tradition"
+        },
+        "blocking": {
+          "speaker_pose": "lean_forward",
+          "listeners": "attentive"
+        },
+        "required_characters": [
+          "challenger_tradition",
+          "protagonist"
+        ],
+        "visual_priority": "standard",
+        "short_candidate": false,
+        "scene_cue": "challenger_close"
+      },
+      {
+        "segment_id": "seg_11",
+        "start_s": 59.2,
+        "end_s": 64.4,
+        "speaker_id": "protagonist",
+        "dialogue": "You keep circling name protection, Mara. It still does not touch the core.",
+        "emotion": "calm_confident",
+        "animation_tag": "concede_nod",
+        "intensity": 0.4,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "soften_nod",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_tradition"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "protagonist_close"
+      },
+      {
+        "segment_id": "seg_12",
+        "start_s": 64.4,
+        "end_s": 67.2,
+        "speaker_id": "caption",
+        "dialogue": "The majority votes Mara out. Seat reset.",
+        "emotion": "ritual",
+        "animation_tag": "reaction_mixed",
+        "intensity": 0.6,
+        "camera": {
+          "shot": "reaction",
+          "anchor": "reaction"
+        },
+        "blocking": {
+          "speaker_pose": "crowd_react",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_texture",
+          "challenger_tradition",
+          "challenger_culinary-innovation"
+        ],
+        "visual_priority": "caption",
+        "short_candidate": false,
+        "scene_cue": "voted_out"
+      },
+      {
+        "segment_id": "seg_13",
+        "start_s": 67.2,
+        "end_s": 72.8,
+        "speaker_id": "protagonist",
+        "dialogue": "My next claim is that delight is its own justification. Come change my mind.",
+        "emotion": "assertive",
+        "animation_tag": "speak_emphatic",
+        "intensity": 0.85,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "stand_emphatic",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_tradition"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "claim_card"
+      },
+      {
+        "segment_id": "seg_14",
+        "start_s": 72.8,
+        "end_s": 80.0,
+        "speaker_id": "challenger_culinary-innovation",
+        "dialogue": "Nice to meet you. Here is where it cracks, Tom: trend chasing. Answer that, not the easy version.",
+        "emotion": "confident_frustration",
+        "animation_tag": "challenge_lean",
+        "intensity": 0.8,
+        "camera": {
+          "shot": "challenger_close",
+          "anchor": "challenger_close_challenger_culinary-innovation"
+        },
+        "blocking": {
+          "speaker_pose": "lean_forward",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "challenger_culinary-innovation",
+          "protagonist"
+        ],
+        "visual_priority": "hero",
+        "short_candidate": true,
+        "scene_cue": "challenger_close"
+      },
+      {
+        "segment_id": "seg_15",
+        "start_s": 80.0,
+        "end_s": 86.4,
+        "speaker_id": "protagonist",
+        "dialogue": "Fine, the edge is messy. But delight is its own justification. I am not backing off.",
+        "emotion": "calm_confident",
+        "animation_tag": "speak_explain",
+        "intensity": 0.55,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "speak_neutral",
+          "listeners": "attentive"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_culinary-innovation"
+        ],
+        "visual_priority": "standard",
+        "short_candidate": false,
+        "scene_cue": "protagonist_close"
+      },
+      {
+        "segment_id": "seg_16",
+        "start_s": 86.4,
+        "end_s": 92.0,
+        "speaker_id": "challenger_culinary-innovation",
+        "dialogue": "That still does not land, Tom. If shock over craft matters, your answer is.",
+        "emotion": "confident_frustration",
+        "animation_tag": "challenge_lean",
+        "intensity": 0.8,
+        "camera": {
+          "shot": "challenger_close",
+          "anchor": "challenger_close_challenger_culinary-innovation"
+        },
+        "blocking": {
+          "speaker_pose": "lean_forward",
+          "listeners": "attentive"
+        },
+        "required_characters": [
+          "challenger_culinary-innovation",
+          "protagonist"
+        ],
+        "visual_priority": "standard",
+        "short_candidate": false,
+        "scene_cue": "challenger_close"
+      },
+      {
+        "segment_id": "seg_17",
+        "start_s": 92.0,
+        "end_s": 97.2,
+        "speaker_id": "protagonist",
+        "dialogue": "Name the case where no technique gain actually flips it, Devin. You cannot.",
+        "emotion": "calm_confident",
+        "animation_tag": "concede_nod",
+        "intensity": 0.4,
+        "camera": {
+          "shot": "protagonist_close",
+          "anchor": "protagonist_close"
+        },
+        "blocking": {
+          "speaker_pose": "soften_nod",
+          "listeners": "attentive"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_culinary-innovation"
+        ],
+        "visual_priority": "standard",
+        "short_candidate": false,
+        "scene_cue": "protagonist_close"
+      },
+      {
+        "segment_id": "seg_18",
+        "start_s": 97.2,
+        "end_s": 100.0,
+        "speaker_id": "caption",
+        "dialogue": "Devin is sent back to their seat.",
+        "emotion": "ritual",
+        "animation_tag": "reaction_mixed",
+        "intensity": 0.6,
+        "camera": {
+          "shot": "reaction",
+          "anchor": "reaction"
+        },
+        "blocking": {
+          "speaker_pose": "crowd_react",
+          "listeners": "mixed_reaction"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_texture",
+          "challenger_tradition",
+          "challenger_culinary-innovation"
+        ],
+        "visual_priority": "caption",
+        "short_candidate": false,
+        "scene_cue": "voted_out"
+      },
+      {
+        "segment_id": "seg_19",
+        "start_s": 100.0,
+        "end_s": 103.6,
+        "speaker_id": "protagonist",
+        "dialogue": "Closing it out: pineapple belongs on pizza still holds.",
+        "emotion": "resolute",
+        "animation_tag": "speak_explain",
+        "intensity": 0.55,
+        "camera": {
+          "shot": "wide_master",
+          "anchor": "wide_master"
+        },
+        "blocking": {
+          "speaker_pose": "speak_neutral",
+          "listeners": "attentive"
+        },
+        "required_characters": [
+          "protagonist",
+          "challenger_culinary-innovation"
+        ],
+        "visual_priority": "standard",
+        "short_candidate": false,
+        "scene_cue": "two_shot"
+      }
+    ],
+    "audio": [
+      {
+        "dialogue_id": "t0000",
+        "start_s": 0.0,
+        "end_s": 8.4,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "One of me, all of you. I am defending that pineapple belongs on pizza, claim by claim. Come change my mind.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0001",
+        "start_s": 8.4,
+        "end_s": 13.6,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "My first claim is that sweet-salty contrast is intentional. Come change my mind.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0002",
+        "start_s": 13.6,
+        "end_s": 19.6,
+        "speaker_id": "challenger_texture",
+        "voice_id": "Cherry",
+        "text": "Nice to meet you. Hold on, Tom. Moisture pooling is the problem, not a footnote.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0003",
+        "start_s": 19.6,
+        "end_s": 23.2,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "Iris, I hear that. But sweet-salty contrast is intentional.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0004",
+        "start_s": 23.2,
+        "end_s": 28.0,
+        "speaker_id": "challenger_texture",
+        "voice_id": "Cherry",
+        "text": "No, Tom, that is the dodge. You left moisture pooling sitting there.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0005",
+        "start_s": 28.0,
+        "end_s": 32.8,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "Name the case where contrast collapse actually flips it, Iris. You cannot.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0007",
+        "start_s": 36.4,
+        "end_s": 41.6,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "My next claim is that traditions evolve with taste. Come change my mind.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0008",
+        "start_s": 41.6,
+        "end_s": 48.8,
+        "speaker_id": "challenger_tradition",
+        "voice_id": "Chelsie",
+        "text": "Hey, good to meet you. You make this sound obvious, Tom, but craft lineage is the hard part.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0009",
+        "start_s": 48.8,
+        "end_s": 54.8,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "Fine, the edge is messy. But traditions evolve with taste. I am not backing off.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0010",
+        "start_s": 54.8,
+        "end_s": 59.2,
+        "speaker_id": "challenger_tradition",
+        "voice_id": "Chelsie",
+        "text": "Come on, Tom. Calling it messy does not explain name protection.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0011",
+        "start_s": 59.2,
+        "end_s": 64.4,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "You keep circling name protection, Mara. It still does not touch the core.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0013",
+        "start_s": 67.2,
+        "end_s": 72.8,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "My next claim is that delight is its own justification. Come change my mind.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0014",
+        "start_s": 72.8,
+        "end_s": 80.0,
+        "speaker_id": "challenger_culinary-innovation",
+        "voice_id": "Serena",
+        "text": "Nice to meet you. Here is where it cracks, Tom: trend chasing. Answer that, not the easy version.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0015",
+        "start_s": 80.0,
+        "end_s": 86.4,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "Fine, the edge is messy. But delight is its own justification. I am not backing off.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0016",
+        "start_s": 86.4,
+        "end_s": 92.0,
+        "speaker_id": "challenger_culinary-innovation",
+        "voice_id": "Serena",
+        "text": "That still does not land, Tom. If shock over craft matters, your answer is.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0017",
+        "start_s": 92.0,
+        "end_s": 97.2,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "Name the case where no technique gain actually flips it, Devin. You cannot.",
+        "audio_ref": null
+      },
+      {
+        "dialogue_id": "t0019",
+        "start_s": 100.0,
+        "end_s": 103.6,
+        "speaker_id": "protagonist",
+        "voice_id": "Ethan",
+        "text": "Closing it out: pineapple belongs on pizza still holds.",
+        "audio_ref": null
+      }
+    ],
+    "voice_map": {
+      "protagonist": "Ethan",
+      "challenger_texture": "Cherry",
+      "challenger_tradition": "Chelsie",
+      "challenger_culinary-innovation": "Serena"
+    },
+    "total_duration_s": 103.6,
+    "crop_safe_9x16": true
+  },
   "run_report": {
     "provider": "mock",
     "model": "mock-debate-1",
@@ -591,7 +1385,8 @@
       "state -> RAPID_REBUTTAL",
       "state -> CLOSING",
       "state -> LOCKED",
-      "locked: 20 turns, 103.6s, 3 highlights, approved=True"
+      "locked: 20 turns, 103.6s, 3 highlights, approved=True",
+      "staged: 20 segments, 103.6s audio timeline [mock-tts]"
     ]
   },
   "approved": true

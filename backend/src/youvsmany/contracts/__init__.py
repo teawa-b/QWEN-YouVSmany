@@ -22,6 +22,15 @@ from youvsmany.contracts.plan import ContentionSlot, RoundPlan
 from youvsmany.contracts.transcript import Transcript, Turn
 from youvsmany.contracts.memory import EpisodeMemory, SpeakerStat
 from youvsmany.contracts.highlights import HighlightCandidate, HighlightScore
+from youvsmany.contracts.scene import (
+    AnimationTag,
+    AudioCue,
+    CameraShot,
+    SceneManifest,
+    SceneSegment,
+    StageLayout,
+    VisualPriority,
+)
 from youvsmany.contracts.episode import Episode
 
 __all__ = [
@@ -45,5 +54,12 @@ __all__ = [
     "SpeakerStat",
     "HighlightCandidate",
     "HighlightScore",
+    "AnimationTag",
+    "AudioCue",
+    "CameraShot",
+    "SceneManifest",
+    "SceneSegment",
+    "StageLayout",
+    "VisualPriority",
     "Episode",
 ]

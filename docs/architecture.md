@@ -18,8 +18,12 @@ ShowBrief ─▶ Topic Producer ─▶ [safety/factuality gate] ─▶ (SourceBr
                  ▼  lock_episode()  state: LOCKED
           Clip Curator ─▶ highlight candidates (weighted, diversified)
                  │
+                 ▼  stage_episode()  — Phase 2
+          Stage Director ─▶ SceneManifest (renderer-neutral, Three.js)
+                 │           stage layout · camera anchors · animation grammar
+                 │           master audio timeline (Qwen Cloud TTS, mock offline)
                  ▼
-          Episode manifest (versioned JSON)  ──▶  Phase 2+ (audio, staging, media)
+          Episode manifest (versioned JSON)  ──▶  Phase 3+ (stills, video, media)
 ```
 
 ## Why the structure

@@ -68,6 +68,7 @@ def _episode_view(ep) -> dict:
         "turns": [t.model_dump() for t in ep.transcript.turns],
         "duration_s": ep.transcript.total_duration_s,
         "highlights": [h.model_dump() for h in ep.highlights],
+        "scene": ep.scene_manifest.model_dump() if ep.scene_manifest else None,
         "metrics": score_episode(ep).model_dump() if ep.transcript.turns else None,
         "run_report": ep.run_report.model_dump(),
     }

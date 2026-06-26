@@ -21,6 +21,13 @@ class Settings:
         "QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     )
     qwen_text_model: str = os.getenv("QWEN_TEXT_MODEL", "qwen3.7-plus")
+    # TTS (Phase 2): DashScope native API root + a Qwen Cloud TTS model.
+    qwen_dashscope_url: str = os.getenv(
+        "QWEN_DASHSCOPE_URL", "https://dashscope-intl.aliyuncs.com/api/v1"
+    )
+    qwen_tts_model: str = os.getenv("QWEN_TTS_MODEL", "qwen-tts")
+    # Provider for the master audio timeline: "mock" (offline) or "qwen" (live).
+    tts_provider: str = os.getenv("YVM_TTS_PROVIDER", "mock").lower()
     run_dir: str = os.getenv("YVM_RUN_DIR", "runs")
     request_timeout_s: float = float(os.getenv("QWEN_TIMEOUT_S", "120"))
 

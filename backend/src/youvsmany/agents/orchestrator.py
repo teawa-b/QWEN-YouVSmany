@@ -9,8 +9,9 @@ from __future__ import annotations
 import uuid
 
 from youvsmany.adapters.base import Provider
-from youvsmany.adapters.factory import build_provider
-from youvsmany.agents import character_builder, director, topic_producer
+from youvsmany.adapters.factory import build_provider, build_tts_provider
+from youvsmany.adapters.tts_base import TTSProvider
+from youvsmany.agents import character_builder, director, stage_director, topic_producer
 from youvsmany.agents.highlights import detect_highlights
 from youvsmany.agents.state_machine import DebateRunner
 from youvsmany.contracts.brief import ShowBrief
@@ -84,12 +85,34 @@ def lock_episode(ep: Episode) -> Episode:
     return ep
 
 
-def run_full(brief: ShowBrief, *, provider: Provider | None = None, suggested_tags=None) -> Episode:
+def stage_episode(ep: Episode, *, tts: TTSProvider | None = None) -> Episode:
+    """Phase 2: build the renderer-neutral scene manifest + master audio timeline
+    from the LOCKED transcript (blueprint 5.2-5.6)."""
+    if ep.state != DebateState.LOCKED:
+        raise ValueError(f"cannot stage from state {ep.state}")
+    tts = tts or build_tts_provider()
+    ep.scene_manifest = stage_director.build_scene_manifest(ep, tts)
+    ep.run_report.events.append(
+        f"staged: {len(ep.scene_manifest.segments)} segments, "
+        f"{ep.scene_manifest.total_duration_s}s audio timeline [{tts.name}]"
+    )
+    return ep
+
+
+def run_full(
+    brief: ShowBrief,
+    *,
+    provider: Provider | None = None,
+    suggested_tags=None,
+    tts: TTSProvider | None = None,
+) -> Episode:
     provider = provider or build_provider()
     ep = create_episode(brief, provider=provider)
     prepare_episode(ep, provider=provider, suggested_tags=suggested_tags)
     run_debate(ep, provider=provider)
-    return lock_episode(ep)
+    lock_episode(ep)
+    stage_episode(ep, tts=tts)
+    return ep
 
 
 def exit_criterion_met(ep: Episode) -> bool:

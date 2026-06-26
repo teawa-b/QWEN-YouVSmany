@@ -58,6 +58,17 @@ def main() -> None:
     for h in ep.highlights:
         print(f"  {h.start_turn_id}->{h.end_turn_id} {h.duration_s:.1f}s "
               f"tag={h.contention_tag} score={h.score.total}")
+
+    sm = ep.scene_manifest
+    if sm is not None:
+        print("-" * 72)
+        print(f"Scene manifest: {len(sm.segments)} segments · {len(sm.audio)} audio cues · "
+              f"{sm.total_duration_s}s · 9:16 safe={sm.crop_safe_9x16}")
+        print(f"Voices: {', '.join(f'{k}={v}' for k, v in sm.voice_map.items())}")
+        for s in sm.segments:
+            print(f"  [{s.segment_id} {s.start_s:6.1f}-{s.end_s:6.1f}s "
+                  f"{s.camera.shot.value:17s} {s.animation_tag.value:14s} "
+                  f"{s.visual_priority.value:8s}] {s.speaker_id}")
     print("Metrics:", json.dumps(score_episode(ep).model_dump(), indent=2))
 
     if args.save:

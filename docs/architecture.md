@@ -4,14 +4,15 @@
 ShowBrief ─▶ Topic Producer ─▶ [safety/factuality gate] ─▶ (SourceBrief if factual)
                  │
                  ▼  create_episode()  state: BRIEFED
-          Character Builder ─▶ Cast (1 protagonist + N challengers + moderator)
+          Character Builder ─▶ Cast (1 protagonist + N challengers)
                  │              each challenger: distinct contention_tag (substance)
                  ▼  prepare_episode()  state: PREPARING
           Private notes (per performer, hidden)  +  Director round plan
                  │
-                 ▼  run_debate()  — moderator-driven state machine
+                 ▼  run_debate()  — director-driven state machine
    OPENING ─▶ CONTENTIONS ─▶ RAPID_REBUTTAL ─▶ CLOSING ─▶ LOCKED
-        moderator: next speaker · repetition kill · dominance cap · disputed question
+        director control: next speaker · repetition kill · dominance cap · disputed question
+        Surrounded ritual: claim card per duel · voted-out caption (non-spoken) resets the seat
         memory: rolling summary · unresolved claims · speaker stats (compact context only)
                  │
                  ▼  lock_episode()  state: LOCKED
@@ -41,8 +42,8 @@ ShowBrief ─▶ Topic Producer ─▶ [safety/factuality gate] ─▶ (SourceBr
 | BRIEFED | topic, safety, cast count, runtime fixed | fields validate |
 | PREPARING | private notes + round plan | contentions unique & covered |
 | OPENING | protagonist states thesis | opening budget reached |
-| CONTENTIONS | one challenger at a time, distinct objection + reply | all contentions addressed |
-| RAPID_REBUTTAL | short sharp turns; moderator forces disputed question | turn cap / tension peak |
-| CLOSING | protagonist + moderator summarise | target duration reached |
+| CONTENTIONS | one challenger at a time: claim card → multi-pass duel → voted-out caption | all contentions addressed |
+| RAPID_REBUTTAL | short sharp turns; director forces disputed question | turn cap / tension peak |
+| CLOSING | protagonist closing line | target duration reached |
 | LOCKED | transcript, timecodes, cues, highlights versioned | gate approves |
 ```

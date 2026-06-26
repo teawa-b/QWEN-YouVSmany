@@ -18,7 +18,7 @@ from youvsmany.contracts.enums import DebateState
 from youvsmany.contracts.episode import Episode
 from youvsmany.contracts.memory import EpisodeMemory
 from youvsmany.contracts.plan import RoundPlan
-from youvsmany.contracts.transcript import Transcript, Turn
+from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID, Transcript, Turn
 
 REPETITION_THRESHOLD = 0.6
 MAX_REGEN_PER_TURN = 2  # retry cap when a turn is repetitive
@@ -63,7 +63,7 @@ class DebateRunner:
         """One claim segment per challenger, Jubilee 'Surrounded' rhythm:
 
         protagonist states the claim -> a one-on-one duel of N passes ->
-        moderator votes the challenger out. Duel depth scales to the budget."""
+        a voted-out caption resets the seat. Duel depth scales to the budget."""
         slots = self.plan.contentions
         passes = director.segment_passes(len(slots), self.plan.target_turns)
         for seg_index, slot in enumerate(slots):
@@ -101,14 +101,11 @@ class DebateRunner:
                 self._emit(challenger, DebateState.CONTENTIONS, ch_obj, greet=first)
                 self._emit(self.cast.protagonist, DebateState.CONTENTIONS, pr_obj)
 
-            # 3. The seat resets: the challenger is voted out.
-            self._emit(
-                self.cast.moderator,
+            # 3. The seat resets: a voted-out caption (no spoken host voice).
+            self._emit_caption(
                 DebateState.CONTENTIONS,
-                director.voted_out_objective(challenger.display_name),
-                react_to=challenger,
+                director.voted_out_caption(challenger.display_name, seg_index),
                 scene_cue="voted_out",
-                force=True,
             )
 
     def _do_rapid_rebuttal(self) -> None:
@@ -128,13 +125,32 @@ class DebateRunner:
             needed -= 2
 
     def _do_closing(self) -> None:
-        self._emit_moderator("invite closing statements")
+        # No moderator handoff: the protagonist's closing line itself signals the
+        # turn to closings, so the round ends on a single spoken beat.
         self._emit(self.cast.protagonist, DebateState.CLOSING, self.plan.closing_objective)
 
     # --- emission helpers ---------------------------------------------
 
-    def _emit_moderator(self, objective: str) -> None:
-        self._emit(self.cast.moderator, self.ep.state, objective)
+    def _emit_caption(self, state: DebateState, text: str, *, scene_cue: str) -> None:
+        """Append a non-spoken ritual caption (e.g. the voted-out gavel).
+
+        Captions never go through a provider, the dominance cap or the
+        repetition guard; they carry no debating voice, so they are excluded
+        from speaker metrics and from opponent-reaction lookups."""
+        turn = Turn(
+            turn_id=f"t{self._counter:04d}",
+            index=self._counter,
+            state=state,
+            speaker_id=CAPTION_SPEAKER_ID,
+            speaker_name="",
+            text=text,
+            contention_tag=None,
+            objective=None,
+            scene_cue=scene_cue,
+        )
+        self.transcript.turns.append(turn)
+        self.memory.rolling_summary = self._summarise()
+        self._counter += 1
 
     def _emit(
         self,
@@ -165,11 +181,11 @@ class DebateRunner:
             latest_opposing_name = react_to.display_name
         else:
             opposing_turn = self._latest_opposing_turn(speaker.character_id)
-            # Fall back to the immediately preceding turn so a speaker always has
-            # something concrete to react to (keeps the exchange a back-and-forth).
-            react_turn = opposing_turn or (
-                self.transcript.turns[-1] if self.transcript.turns else None
-            )
+            # Fall back to the most recent spoken turn so a speaker always has
+            # something concrete to react to (keeps the exchange a back-and-forth);
+            # skip ritual captions, which carry no debating voice.
+            spoken = [t for t in self.transcript.turns if t.speaker_id != CAPTION_SPEAKER_ID]
+            react_turn = opposing_turn or (spoken[-1] if spoken else None)
             latest_opposing = react_turn.text if react_turn else ""
             latest_opposing_tag = react_turn.contention_tag if react_turn else None
             latest_opposing_name = react_turn.speaker_name if react_turn else ""
@@ -230,9 +246,9 @@ class DebateRunner:
     def _latest_opposing_turn(self, speaker_id: str):
         speaker = self.cast.by_id(speaker_id)
         for turn in reversed(self.transcript.turns):
-            other = self.cast.by_id(turn.speaker_id)
-            if other.role.value == "moderator":
+            if turn.speaker_id == CAPTION_SPEAKER_ID:
                 continue
+            other = self.cast.by_id(turn.speaker_id)
             if other.stance != speaker.stance:
                 return turn
         return None

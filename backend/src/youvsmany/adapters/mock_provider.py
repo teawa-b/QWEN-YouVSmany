@@ -243,7 +243,7 @@ class MockProvider:
         while len(tags) < n:
             tags.append(_GENERIC_TAGS[len(tags) % len(_GENERIC_TAGS)])
         tags = tags[:n]
-        names = _distinct_names(topic, seed, n + 2)
+        names = _distinct_names(topic, seed, n + 1)
 
         protagonist = {
             "character_id": "protagonist",
@@ -272,18 +272,9 @@ class MockProvider:
                     "boundaries": ["no personal insults", "no invented facts"],
                 }
             )
-        moderator = {
-            "character_id": "moderator",
-            "display_name": names[-1],
-            "role": "moderator",
-            "stance": "neutral",
-            "core_contention": "keep the debate fair, distinct and on time",
-            "contention_tag": "control",
-            "supporting_points": ["enforce turns", "kill repetition", "force disputed questions"],
-            "personality": _persona("mod", topic, seed),
-            "boundaries": ["stay neutral", "no new arguments"],
-        }
-        return {"protagonist": protagonist, "challengers": challengers, "moderator": moderator}
+        # No moderator: the cast is just the debating voices (1 protagonist + N
+        # challengers). The voted-out gavel is rendered as a non-spoken caption.
+        return {"protagonist": protagonist, "challengers": challengers, "moderator": None}
 
     def _task_private_notes(self, params: dict, seed: int) -> dict:
         tag = params.get("contention_tag", "framing")
@@ -436,14 +427,6 @@ _RAPID_LINES = [
     "No speeches, {opp} - just {point}. Settle it.",
 ]
 
-# Moderator gavel that ends a one-on-one duel, Jubilee 'Surrounded' style.
-_VOTED_OUT = [
-    "Time, {opp}. The majority's voted you out - back to your seat.",
-    "That's the round, {opp}. You're voted out. Return to your seat.",
-    "{opp}, you've been voted out. Please head back to your seat.",
-    "Good work, {opp} - the vote's in, you're out. Take your seat.",
-]
-
 _GREETINGS = ["Nice to meet you.", "Hey, good to meet you.", "How's it going?"]
 
 
@@ -490,15 +473,7 @@ def _line(
     point_cap = _clean_sentence(point)
     counter_cap = _clean_sentence(counter)
 
-    if role == "moderator":
-        if "voted out" in objective:
-            # Crafted ritual line: keep it whole so the gavel never clips mid-phrase.
-            return _clip_words(_pick(_VOTED_OUT, jitter).format(opp=opp_name), 16)
-        elif state == "CLOSING":
-            base = "Time. Closings now - no new arguments."
-        else:
-            base = f"Keep it tight. {name} wants one direct answer on {otag}, then we move."
-    elif role == "protagonist":
+    if role == "protagonist":
         if state == "OPENING":
             # Crafted establishing beat: keep the full "surrounded" framing intact.
             return _clip_words(

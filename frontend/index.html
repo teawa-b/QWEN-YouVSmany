@@ -388,8 +388,9 @@ function render(d){
       return;
     }
     if(t.scene_cue==="voted_out"){
+      // Non-spoken ritual caption: no host voice, just the on-screen gavel beat.
       out.push(`<div class="votedout"><span class="seatline"></span>
-        <span class="ritual"><b>${esc(t.speaker_name)}</b>: ${esc(t.text)}</span>
+        <span class="ritual">${esc(t.text)}</span>
         <span class="seatline"></span></div>`);
       return;
     }

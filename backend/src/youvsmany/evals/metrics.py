@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from youvsmany.agents.repetition import similarity
 from youvsmany.contracts.episode import Episode
+from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID
 
 
 class DebateMetrics(BaseModel):
@@ -46,7 +47,9 @@ def _contention_uniqueness(ep: Episode) -> float:
 
 
 def _repetition(ep: Episode) -> float:
-    texts = [t.text for t in ep.transcript.turns]
+    # Ritual captions (the voted-out gavel) are deterministic and near-identical
+    # by design; they are not debating voices, so exclude them from repetition.
+    texts = [t.text for t in ep.transcript.turns if t.speaker_id != CAPTION_SPEAKER_ID]
     if len(texts) < 2:
         return 0.0
     worst = []
@@ -85,5 +88,7 @@ def score_episode(ep: Episode) -> DebateMetrics:
         contention_uniqueness=_contention_uniqueness(ep),
         repetition=_repetition(ep),
         persona_adherence=_persona_adherence(ep),
-        distinct_speakers=len({t.speaker_id for t in ep.transcript.turns}),
+        distinct_speakers=len(
+            {t.speaker_id for t in ep.transcript.turns if t.speaker_id != CAPTION_SPEAKER_ID}
+        ),
     )

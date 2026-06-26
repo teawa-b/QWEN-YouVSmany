@@ -11,6 +11,11 @@ from youvsmany.contracts.enums import DebateState
 # ~150 wpm conversational pace = 2.5 words/sec.
 WORDS_PER_SECOND = 2.5
 
+# Sentinel speaker id for non-spoken ritual captions (e.g. the voted-out gavel).
+# Captions appear in the transcript but are not a debating voice, so metrics and
+# opponent-reaction lookups skip turns carrying this id.
+CAPTION_SPEAKER_ID = "caption"
+
 
 class Turn(BaseModel):
     turn_id: str = Field(..., description="Stable, ordered id e.g. 't0007'.")

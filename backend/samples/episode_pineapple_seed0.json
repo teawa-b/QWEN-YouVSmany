@@ -180,30 +180,7 @@
         ]
       }
     ],
-    "moderator": {
-      "character_id": "moderator",
-      "display_name": "Priya",
-      "role": "moderator",
-      "stance": "neutral",
-      "core_contention": "keep the debate fair, distinct and on time",
-      "contention_tag": "control",
-      "supporting_points": [
-        "enforce turns",
-        "kill repetition",
-        "force disputed questions"
-      ],
-      "personality": {
-        "tone": "precise and mildly impatient",
-        "humour": 0.15,
-        "assertiveness": 0.55,
-        "concession_threshold": 0.31
-      },
-      "private_strategy": null,
-      "boundaries": [
-        "stay neutral",
-        "no new arguments"
-      ]
-    }
+    "moderator": null
   },
   "plan": {
     "thesis": "Pineapple belongs on pizza is right on the merits",
@@ -313,14 +290,14 @@
         "turn_id": "t0006",
         "index": 6,
         "state": "CONTENTIONS",
-        "speaker_id": "moderator",
-        "speaker_name": "Priya",
-        "text": "Time, Iris. The majority's voted you out - back to your seat.",
+        "speaker_id": "caption",
+        "speaker_name": "",
+        "text": "Iris is voted out — back to the bench.",
         "contention_tag": null,
-        "objective": "Close this duel: tell Iris they've been voted out by the majority and to return to their seat. Warm, quick, ritual — no new argument.",
+        "objective": null,
         "scene_cue": "voted_out",
         "start_s": 32.8,
-        "duration_s": 4.8
+        "duration_s": 3.6
       },
       {
         "turn_id": "t0007",
@@ -332,7 +309,7 @@
         "contention_tag": null,
         "objective": "State your next claim to the room out loud, Jubilee 'Surrounded' style: say 'My next claim is that …' and assert your strongest line on tradition for Pineapple belongs on pizza. One sentence, then dare them to change your mind.",
         "scene_cue": "claim_card",
-        "start_s": 37.6,
+        "start_s": 36.4,
         "duration_s": 5.2
       },
       {
@@ -345,7 +322,7 @@
         "contention_tag": "tradition",
         "objective": "greet your opponent first, then meet the protagonist, then challenge the claim on tradition with one concrete pressure point",
         "scene_cue": "challenger_close",
-        "start_s": 42.8,
+        "start_s": 41.6,
         "duration_s": 7.2
       },
       {
@@ -358,7 +335,7 @@
         "contention_tag": null,
         "objective": "answer the tradition objection directly and keep it conversational",
         "scene_cue": "protagonist_close",
-        "start_s": 50.0,
+        "start_s": 48.8,
         "duration_s": 6.0
       },
       {
@@ -371,7 +348,7 @@
         "contention_tag": "tradition",
         "objective": "push back on the exact answer about tradition; raise the heat, no new topic — bring a NEW example, do not restate. — bring a NEW example, do not restate.",
         "scene_cue": "challenger_close",
-        "start_s": 56.0,
+        "start_s": 54.8,
         "duration_s": 4.4
       },
       {
@@ -384,21 +361,21 @@
         "contention_tag": null,
         "objective": "reply to the pushback on tradition; concede only the narrowest fair point",
         "scene_cue": "protagonist_close",
-        "start_s": 60.4,
+        "start_s": 59.2,
         "duration_s": 5.2
       },
       {
         "turn_id": "t0012",
         "index": 12,
         "state": "CONTENTIONS",
-        "speaker_id": "moderator",
-        "speaker_name": "Priya",
-        "text": "Mara, you've been voted out. Please head back to your seat.",
+        "speaker_id": "caption",
+        "speaker_name": "",
+        "text": "The majority votes Mara out. Seat reset.",
         "contention_tag": null,
-        "objective": "Close this duel: tell Mara they've been voted out by the majority and to return to their seat. Warm, quick, ritual — no new argument.",
+        "objective": null,
         "scene_cue": "voted_out",
-        "start_s": 65.6,
-        "duration_s": 4.4
+        "start_s": 64.4,
+        "duration_s": 2.8
       },
       {
         "turn_id": "t0013",
@@ -410,7 +387,7 @@
         "contention_tag": null,
         "objective": "State your next claim to the room out loud, Jubilee 'Surrounded' style: say 'My next claim is that …' and assert your strongest line on culinary-innovation for Pineapple belongs on pizza. One sentence, then dare them to change your mind.",
         "scene_cue": "claim_card",
-        "start_s": 70.0,
+        "start_s": 67.2,
         "duration_s": 5.6
       },
       {
@@ -423,7 +400,7 @@
         "contention_tag": "culinary-innovation",
         "objective": "greet your opponent first, then meet the protagonist, then challenge the claim on culinary-innovation with one concrete pressure point — bring a NEW example, do not restate. — bring a NEW example, do not restate.",
         "scene_cue": "challenger_close",
-        "start_s": 75.6,
+        "start_s": 72.8,
         "duration_s": 7.2
       },
       {
@@ -436,7 +413,7 @@
         "contention_tag": null,
         "objective": "answer the culinary-innovation objection directly and keep it conversational",
         "scene_cue": "protagonist_close",
-        "start_s": 82.8,
+        "start_s": 80.0,
         "duration_s": 6.4
       },
       {
@@ -449,7 +426,7 @@
         "contention_tag": "culinary-innovation",
         "objective": "push back on the exact answer about culinary-innovation; raise the heat, no new topic",
         "scene_cue": "challenger_close",
-        "start_s": 89.2,
+        "start_s": 86.4,
         "duration_s": 5.6
       },
       {
@@ -462,57 +439,44 @@
         "contention_tag": null,
         "objective": "reply to the pushback on culinary-innovation; concede only the narrowest fair point",
         "scene_cue": "protagonist_close",
-        "start_s": 94.8,
+        "start_s": 92.0,
         "duration_s": 5.2
       },
       {
         "turn_id": "t0018",
         "index": 18,
         "state": "CONTENTIONS",
-        "speaker_id": "moderator",
-        "speaker_name": "Priya",
-        "text": "Good work, Devin - the vote's in, you're out. Take your seat.",
+        "speaker_id": "caption",
+        "speaker_name": "",
+        "text": "Devin is sent back to their seat.",
         "contention_tag": null,
-        "objective": "Close this duel: tell Devin they've been voted out by the majority and to return to their seat. Warm, quick, ritual — no new argument.",
+        "objective": null,
         "scene_cue": "voted_out",
-        "start_s": 100.0,
-        "duration_s": 4.8
+        "start_s": 97.2,
+        "duration_s": 2.8
       },
       {
         "turn_id": "t0019",
         "index": 19,
         "state": "CLOSING",
-        "speaker_id": "moderator",
-        "speaker_name": "Priya",
-        "text": "Time. Closings now - no new arguments.",
-        "contention_tag": null,
-        "objective": "invite closing statements",
-        "scene_cue": "two_shot",
-        "start_s": 104.8,
-        "duration_s": 2.8
-      },
-      {
-        "turn_id": "t0020",
-        "index": 20,
-        "state": "CLOSING",
         "speaker_id": "protagonist",
         "speaker_name": "Tom",
-        "text": "Closing it out: pineapple belongs on pizza still holds. The others found messy edges, but not a better answer.",
+        "text": "Closing it out: pineapple belongs on pizza still holds.",
         "contention_tag": null,
         "objective": "summarise concessions and the unresolved core",
         "scene_cue": "two_shot",
-        "start_s": 107.6,
-        "duration_s": 7.6
+        "start_s": 100.0,
+        "duration_s": 3.6
       }
     ]
   },
   "memory": {
-    "rolling_summary": "21 turns; contentions covered: texture, tradition, culinary-innovation.",
+    "rolling_summary": "20 turns; contentions covered: texture, tradition, culinary-innovation.",
     "recent_turns": [
+      "Tom: Fine, the edge is messy. But delight is its own justificatio",
+      "Devin: That still does not land, Tom. If shock over craft matters, ",
       "Tom: Name the case where no technique gain actually flips it, Dev",
-      "Priya: Good work, Devin - the vote's in, you're out. Take your seat",
-      "Priya: Time. Closings now - no new arguments.",
-      "Tom: Closing it out: pineapple belongs on pizza still holds. The "
+      "Tom: Closing it out: pineapple belongs on pizza still holds."
     ],
     "unresolved_claims": [
       "texture: Nice to meet you. Hold on, Tom. Moisture pooling is the prob",
@@ -531,17 +495,12 @@
     "speaker_stats": {
       "protagonist": {
         "turns": 11,
-        "words": 158,
-        "consecutive": 1
+        "words": 148,
+        "consecutive": 2
       },
       "challenger_texture": {
         "turns": 2,
         "words": 27,
-        "consecutive": 0
-      },
-      "moderator": {
-        "turns": 4,
-        "words": 42,
         "consecutive": 0
       },
       "challenger_tradition": {
@@ -561,8 +520,8 @@
     {
       "start_turn_id": "t0011",
       "end_turn_id": "t0014",
-      "start_s": 60.4,
-      "end_s": 82.8,
+      "start_s": 59.2,
+      "end_s": 80.0,
       "contention_tag": "culinary-innovation",
       "score": {
         "hook": 0.633,
@@ -574,7 +533,7 @@
         "visual_potential": 0.6,
         "penalty": 0.0
       },
-      "summary": "Tom: You keep circling name protection, Mara. It stil / Priya: Mara, you've been voted out. Please head back to / Tom: My next claim is that delight is its own justifi / Devin: Nice to meet you. Here is where it cracks, Tom: "
+      "summary": "Tom: You keep circling name protection, Mara. It stil / : The majority votes Mara out. Seat reset. / Tom: My next claim is that delight is its own justifi / Devin: Nice to meet you. Here is where it cracks, Tom: "
     },
     {
       "start_turn_id": "t0000",
@@ -598,7 +557,7 @@
       "start_turn_id": "t0005",
       "end_turn_id": "t0008",
       "start_s": 28.0,
-      "end_s": 50.0,
+      "end_s": 48.8,
       "contention_tag": "tradition",
       "score": {
         "hook": 0.3,
@@ -610,15 +569,15 @@
         "visual_potential": 0.6,
         "penalty": 0.0
       },
-      "summary": "Tom: Name the case where contrast collapse actually f / Priya: Time, Iris. The majority's voted you out - back  / Tom: My next claim is that traditions evolve with tas / Mara: Hey, good to meet you. You make this sound obvio"
+      "summary": "Tom: Name the case where contrast collapse actually f / : Iris is voted out — back to the bench. / Tom: My next claim is that traditions evolve with tas / Mara: Hey, good to meet you. You make this sound obvio"
     }
   ],
   "run_report": {
     "provider": "mock",
     "model": "mock-debate-1",
-    "llm_calls": 31,
-    "input_tokens": 8606,
-    "output_tokens": 889,
+    "llm_calls": 27,
+    "input_tokens": 8001,
+    "output_tokens": 789,
     "retries": 4,
     "events": [
       "safety: allowed=True",
@@ -632,7 +591,7 @@
       "state -> RAPID_REBUTTAL",
       "state -> CLOSING",
       "state -> LOCKED",
-      "locked: 21 turns, 115.2s, 3 highlights, approved=True"
+      "locked: 20 turns, 103.6s, 3 highlights, approved=True"
     ]
   },
   "approved": true

@@ -7,6 +7,10 @@ criterion is met.
 > **Stack decisions (override the blueprint where noted):**
 > - **Renderer: Three.js** (not Unity). The scene contract is renderer-neutral, so
 >   nothing in the pipeline binds to a specific engine.
+> - **Premade studio sets (glTF/GLB), not procedural.** The Stage Director picks
+>   one of a small library of art-directed sets; Three.js *loads* the set rather
+>   than building a stage at runtime. Character marks are fit to the cast inside
+>   each set's stage bounds.
 > - **Voice/TTS: a Qwen Cloud TTS model** (via DashScope), assembled into the
 >   master audio timeline before any 3D/video work.
 
@@ -42,10 +46,13 @@ Sub-tasks:
 - [x] **Animation grammar** mapping (§5.4) — the six reusable states.
 - [x] **TTS adapter** interface + offline mock (deterministic durations) so the
       timeline builds without network; **Qwen Cloud TTS** adapter for live audio.
+- [x] **Premade scene-template registry** — deterministic set selection, cast
+      bound to marks inside the set, manifest references the `.glb` asset.
+- [ ] Author the actual `.glb` studio sets (placeholders in `frontend/assets/scenes/`).
 - [ ] Confirm the exact Qwen Cloud TTS model id + voice ids (currently env-driven,
       defaults to `qwen-tts`).
-- [ ] **Three.js scene player** that consumes the manifest (positions, camera
-      cuts, visemes from the master audio).
+- [ ] **Three.js scene player** that loads the chosen premade set and drives it
+      from the manifest (marks, camera cuts, visemes from the master audio).
 - [ ] **Capture**: full base edit, per-segment shot clips, hero stills.
 - [ ] **Tests**: speaker timing, camera correctness, 9:16 crop safety,
       deterministic replay from the manifest.

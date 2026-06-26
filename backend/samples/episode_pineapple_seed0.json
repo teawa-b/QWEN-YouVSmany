@@ -574,6 +574,12 @@
   ],
   "scene_manifest": {
     "episode_id": "ep_3572c6af",
+    "scene_template": {
+      "template_id": "clean_white",
+      "display_name": "Clean White Stage",
+      "asset_url": "/assets/scenes/clean_white.glb",
+      "environment": "minimal high-key white cyclorama, crisp silhouettes for image conversion"
+    },
     "stage": {
       "marks": [
         {
@@ -592,7 +598,7 @@
           "role": "challenger",
           "mark": "arc_1",
           "position": {
-            "x": -1.5,
+            "x": -1.6,
             "y": 0.0,
             "z": -0.5
           },
@@ -614,7 +620,7 @@
           "role": "challenger",
           "mark": "arc_3",
           "position": {
-            "x": 1.5,
+            "x": 1.6,
             "y": 0.0,
             "z": -0.5
           },
@@ -666,7 +672,7 @@
           "name": "challenger_close_challenger_texture",
           "shot": "challenger_close",
           "position": {
-            "x": -0.9,
+            "x": -0.96,
             "y": 1.6,
             "z": 1.8
           },
@@ -686,7 +692,7 @@
           "name": "challenger_close_challenger_culinary-innovation",
           "shot": "challenger_close",
           "position": {
-            "x": 0.9,
+            "x": 0.96,
             "y": 1.6,
             "z": 1.8
           },

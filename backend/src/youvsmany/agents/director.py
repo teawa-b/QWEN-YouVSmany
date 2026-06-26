@@ -96,28 +96,39 @@ def voted_out_objective(challenger_name: str) -> str:
     )
 
 
+CEILING_TURNS = 24
+
+
 def segment_passes(num_segments: int, target_turns: int) -> list[int]:
     """How many challenger->protagonist passes each claim segment runs.
 
     Every segment carries a fixed 2-turn ritual overhead (claim card + voted-out
-    closer) on top of its duel passes. Opening + closing add 3 more turns. We seed
-    one pass per segment and add passes round-robin until the run lands near the
-    director's target, clamped to the locked 12-24 window."""
+    closer) on top of its duel passes. Opening + closing add 3 more turns.
+
+    A single pass is one objection and one answer — the gavel falls before the
+    challenger can press the protagonist's actual reply, so the exchange reads as
+    flat. We therefore give every duel a back-and-forth *floor* of two passes
+    whenever the whole run still fits under the locked 24-turn ceiling, then add
+    further passes round-robin toward the director's target."""
     n = max(1, num_segments)
-    passes = [1] * n
     fixed = 1 + 2  # opening + (moderator invite + protagonist close)
 
     def total(ps: list[int]) -> int:
         return fixed + sum(2 + p * 2 for p in ps)
 
+    # Floor of 2 passes per duel when it fits; fall back to 1 only for casts so
+    # large that two passes each would blow the ceiling.
+    floor = 2 if total([2] * n) <= CEILING_TURNS else 1
+    passes = [floor] * n
+
     target = max(12, min(20, target_turns))
     i = 0
     # Grow toward the target, then make sure we clear the 12-turn floor, never
     # crossing the 24-turn ceiling.
-    while total(passes) + 2 <= min(target, 24):
+    while total(passes) + 2 <= min(target, CEILING_TURNS):
         passes[i % n] += 1
         i += 1
-    while total(passes) < 12 and total(passes) + 2 <= 24:
+    while total(passes) < 12 and total(passes) + 2 <= CEILING_TURNS:
         passes[i % n] += 1
         i += 1
     return passes

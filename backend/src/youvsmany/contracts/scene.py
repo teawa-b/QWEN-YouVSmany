@@ -76,6 +76,31 @@ class StageLayout(BaseModel):
     crop_guide: str = "9:16"
 
 
+class SceneTemplate(BaseModel):
+    """A premade studio set (glTF/GLB) the renderer loads instead of building a
+    stage at runtime. The set is fixed art; character marks are fit to the actual
+    cast inside the set's stage bounds, and the camera anchors are predefined."""
+
+    template_id: str
+    display_name: str
+    asset_url: str = Field(..., description="glTF/GLB the Three.js player loads.")
+    environment: str = Field("", description="Human description of the set look.")
+    max_challengers: int = 5
+    protagonist_pos: Vec3 = Field(default_factory=lambda: Vec3(x=0.0, y=0.0, z=2.0))
+    arc_x: tuple[float, float] = (-1.6, 1.6)
+    arc_z: float = -0.5
+    base_anchors: list[CameraAnchor] = Field(default_factory=list)
+
+
+class SceneTemplateRef(BaseModel):
+    """The premade set a manifest was staged against (for the renderer to load)."""
+
+    template_id: str
+    display_name: str
+    asset_url: str
+    environment: str = ""
+
+
 class CameraSpec(BaseModel):
     shot: CameraShot
     anchor: str = Field(..., description="Name of the CameraAnchor to use.")
@@ -134,6 +159,7 @@ class SceneManifest(BaseModel):
     """The Phase 2 deliverable: a renderer-neutral, audio-locked episode plan."""
 
     episode_id: str
+    scene_template: SceneTemplateRef | None = None
     stage: StageLayout
     segments: list[SceneSegment] = Field(default_factory=list)
     audio: list[AudioCue] = Field(default_factory=list)

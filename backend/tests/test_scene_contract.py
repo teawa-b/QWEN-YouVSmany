@@ -104,3 +104,30 @@ def test_crop_safe_flag_present():
     ep = _run()
     assert ep.scene_manifest.crop_safe_9x16 is True
     assert ep.scene_manifest.stage.crop_guide == "9:16"
+
+
+def test_staged_against_a_premade_template():
+    from youvsmany.agents.scene_templates import get_template
+
+    ep = _run()
+    ref = ep.scene_manifest.scene_template
+    assert ref is not None
+    # The chosen set is a real registry entry the renderer can load.
+    tpl = get_template(ref.template_id)
+    assert ref.asset_url == tpl.asset_url and ref.asset_url.endswith(".glb")
+    # The set can seat the whole cast.
+    assert tpl.max_challengers >= len(ep.cast.challengers)
+    # Challenger marks stay symmetric inside the set's stage bounds.
+    lo, hi = tpl.arc_x
+    xs = [m.position.x for m in ep.scene_manifest.stage.marks if m.role == "challenger"]
+    assert all(lo <= x <= hi for x in xs)
+    assert abs(xs[0] + xs[-1]) < 1e-6  # mirror-symmetric about centre
+
+
+def test_template_choice_is_deterministic_by_seed():
+    from youvsmany.agents.scene_templates import select_template
+
+    assert select_template(3, 7).template_id == select_template(3, 7).template_id
+    a = _run(seed=4).scene_manifest.scene_template.template_id
+    b = _run(seed=4).scene_manifest.scene_template.template_id
+    assert a == b

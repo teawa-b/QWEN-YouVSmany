@@ -9,6 +9,7 @@ come from the synthesised line durations, so no later visual can drift off the c
 from __future__ import annotations
 
 from youvsmany.adapters.tts_base import WORDS_PER_SECOND, TTSProvider
+from youvsmany.agents.scene_templates import select_template
 from youvsmany.contracts.character import Cast
 from youvsmany.contracts.enums import DebateState
 from youvsmany.contracts.episode import Episode
@@ -21,6 +22,8 @@ from youvsmany.contracts.scene import (
     CameraSpec,
     SceneManifest,
     SceneSegment,
+    SceneTemplate,
+    SceneTemplateRef,
     StageLayout,
     StageMark,
     Vec3,
@@ -57,7 +60,8 @@ _INTENSITY = {
 def build_scene_manifest(ep: Episode, tts: TTSProvider) -> SceneManifest:
     cast: Cast = ep.cast  # type: ignore[assignment]
     voice_map = _assign_voices(cast)
-    stage = _build_stage(cast)
+    template = select_template(len(cast.challengers), ep.brief.seed)
+    stage = _build_stage(cast, template)
     covered = _highlight_turn_ids(ep)
 
     segments: list[SceneSegment] = []
@@ -118,6 +122,12 @@ def build_scene_manifest(ep: Episode, tts: TTSProvider) -> SceneManifest:
 
     return SceneManifest(
         episode_id=ep.episode_id,
+        scene_template=SceneTemplateRef(
+            template_id=template.template_id,
+            display_name=template.display_name,
+            asset_url=template.asset_url,
+            environment=template.environment,
+        ),
         stage=stage,
         segments=segments,
         audio=audio,
@@ -135,48 +145,49 @@ def _assign_voices(cast: Cast) -> dict[str, str]:
     return {c.character_id: VOICE_POOL[i % len(VOICE_POOL)] for i, c in enumerate(speakers)}
 
 
-def _build_stage(cast: Cast) -> StageLayout:
-    """Protagonist centre-front; challengers in a shallow semicircle behind."""
+def _challenger_x(template: SceneTemplate, i: int, n: int) -> float:
+    """Symmetric placement inside the set's stage bounds, so N challengers stay
+    balanced regardless of the set's seating capacity."""
+    lo, hi = template.arc_x
+    return round(lo + (hi - lo) * i / (n - 1), 3) if n > 1 else round((lo + hi) / 2, 3)
+
+
+def _build_stage(cast: Cast, template: SceneTemplate) -> StageLayout:
+    """Place the cast on marks inside the premade set, and reuse its camera
+    anchors (rebinding the protagonist look-at to the actual protagonist id)."""
+    p = template.protagonist_pos
     marks = [
         StageMark(
             character_id=cast.protagonist.character_id,
             role="protagonist",
             mark="center",
-            position=Vec3(x=0.0, y=0.0, z=2.0),
+            position=Vec3(x=p.x, y=p.y, z=p.z),
             face_to="camera",
         )
     ]
     n = len(cast.challengers)
     for i, ch in enumerate(cast.challengers):
-        # Spread challengers evenly across a 3.0-wide arc, slightly upstage.
-        x = -1.5 + (3.0 * i / (n - 1)) if n > 1 else 0.0
         marks.append(
             StageMark(
                 character_id=ch.character_id,
                 role="challenger",
                 mark=f"arc_{i + 1}",
-                position=Vec3(x=round(x, 3), y=0.0, z=-0.5),
+                position=Vec3(x=_challenger_x(template, i, n), y=0.0, z=template.arc_z),
                 face_to=cast.protagonist.character_id,
             )
         )
 
-    anchors = [
-        CameraAnchor(name="wide_master", shot=CameraShot.WIDE_MASTER,
-                     position=Vec3(x=0.0, y=1.6, z=6.0), look_at="stage_center"),
-        CameraAnchor(name="protagonist_close", shot=CameraShot.PROTAGONIST_CLOSE,
-                     position=Vec3(x=0.0, y=1.6, z=3.6), look_at=cast.protagonist.character_id),
-        CameraAnchor(name="reaction", shot=CameraShot.REACTION,
-                     position=Vec3(x=1.0, y=1.9, z=4.5), look_at="stage_center"),
-        CameraAnchor(name="two_shot", shot=CameraShot.TWO_SHOT,
-                     position=Vec3(x=0.8, y=1.6, z=4.2), look_at="stage_center"),
-    ]
+    # The set's predefined cameras, with the protagonist sentinel resolved.
+    anchors: list[CameraAnchor] = []
+    for a in template.base_anchors:
+        look_at = cast.protagonist.character_id if a.look_at == "protagonist" else a.look_at
+        anchors.append(a.model_copy(update={"look_at": look_at}))
     for i, ch in enumerate(cast.challengers):
-        x = -1.5 + (3.0 * i / (n - 1)) if n > 1 else 0.0
         anchors.append(
             CameraAnchor(
                 name=f"challenger_close_{ch.character_id}",
                 shot=CameraShot.CHALLENGER_CLOSE,
-                position=Vec3(x=round(x * 0.6, 3), y=1.6, z=1.8),
+                position=Vec3(x=round(_challenger_x(template, i, n) * 0.6, 3), y=1.6, z=1.8),
                 look_at=ch.character_id,
             )
         )

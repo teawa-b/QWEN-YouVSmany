@@ -28,6 +28,8 @@ from youvsmany.contracts.scene import (
     CameraShot,
     SceneManifest,
     SceneSegment,
+    SceneTemplate,
+    SceneTemplateRef,
     StageLayout,
     VisualPriority,
 )
@@ -59,6 +61,8 @@ __all__ = [
     "CameraShot",
     "SceneManifest",
     "SceneSegment",
+    "SceneTemplate",
+    "SceneTemplateRef",
     "StageLayout",
     "VisualPriority",
     "Episode",

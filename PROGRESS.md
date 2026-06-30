@@ -48,7 +48,9 @@ Sub-tasks:
       timeline builds without network; **Qwen Cloud TTS** adapter for live audio.
 - [x] **Premade scene-template registry** — deterministic set selection, cast
       bound to marks inside the set, manifest references the `.glb` asset.
-- [ ] Author the actual `.glb` studio sets (placeholders in `frontend/assets/scenes/`).
+- [x] Placeholder `.glb` studio sets generated (`frontend/assets/scenes/` —
+      simple primitive geometry, real loadable binaries, sized to stage bounds).
+      Swap-in-place for final art later; no code changes needed.
 - [ ] Confirm the exact Qwen Cloud TTS model id + voice ids (currently env-driven,
       defaults to `qwen-tts`).
 - [ ] **Three.js scene player** that loads the chosen premade set and drives it

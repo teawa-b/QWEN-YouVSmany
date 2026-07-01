@@ -16,10 +16,11 @@ const PALETTE = [0xf0997b, 0x5dcaa5, 0xd4537e, 0xefbf4f, 0x85b7eb];
 const ACCENT = 0x7b97ff;
 const CHAR_HEIGHT = 1.7;   // target standing height (m) for scaling the Mixamo rig
 const CHAIR_HEIGHT = 0.92; // real-ish chair height (m); seat lands ~0.46
-const BOT_SEAT_Z = -0.12;
-const BOT_SEAT_Y = -0.28;
-const PLATE_W = 0.58;
-const PLATE_H = 0.145;
+const HEAD_TO_CROWN_Y = 0.17;
+const CROWN_TO_UPPER_BODY_Y = 0.38;
+const CLOSE_UPPER_BODY_DROP_Y = 0.44;
+const CLOSE_CAMERA_TABLE_OFFSET_Z = 1.4;
+const HEAD_BONE_NAMES = ["mixamorigHead", "Head"];
 
 // Themed studio look per premade set id (matches the manifest's scene_template).
 const THEMES = {
@@ -41,26 +42,90 @@ function loadFBX(url) {
   return new Promise((res, rej) => fbxLoader.load(url, res, undefined, rej));
 }
 
-// Male/female Mixamo bot rigs + shared animation clips, loaded once.
-let characterAssets = null;
-async function getCharacterAssets() {
-  if (characterAssets) return characterAssets;
-  const [maleRig, femaleRig, idle, talk] = await Promise.all([
+// The seated idle/talking clips are Mixamo exports authored for Remy's
+// proportions, but every Mixamo character shares the same *local* per-bone
+// rotation convention regardless of body size — that's the premise their
+// whole animation library relies on, and it's why the raw clip can just be
+// replayed on a differently-proportioned rig without touching most tracks.
+// The one thing that ISN'T proportion-independent is the hip's *position*
+// track (Remy's rig uses ~2x larger raw units than X/Y Bot), so we rescale
+// only that track by (targetHipHeight / REMY_HIP_Y) before applying the clip.
+const REMY_HIP_Y = 209.15078735351562; // remy.fbx "Body" mesh, mixamorigHips, bind pose
+
+let characterAssetsPromise = null;
+function getCharacterAssets() {
+  if (!characterAssetsPromise) characterAssetsPromise = _loadCharacterAssets();
+  return characterAssetsPromise;
+}
+async function _loadCharacterAssets() {
+  const [maleRig, femaleRig, idleSrc, talkSrc] = await Promise.all([
     loadFBX("/assets/characters/y_bot.fbx"),
     loadFBX("/assets/characters/x_bot.fbx"),
     loadFBX("/assets/characters/anim_idle.fbx"),
     loadFBX("/assets/characters/anim_talking.fbx"),
   ]);
-  characterAssets = {
-    rigs: {
-      male: maleRig,
-      female: femaleRig,
-      neutral: maleRig,
+
+  // X Bot / Y Bot each ship a visible "*_Surface" mesh plus a "*_Joints"
+  // debug mesh with its OWN duplicate bone hierarchy (same names) — drop it
+  // entirely so bone-name lookups during animation binding stay unambiguous.
+  for (const rig of [maleRig, femaleRig]) {
+    const joints = [];
+    rig.traverse((o) => { if (o.isSkinnedMesh && /_Joints$/i.test(o.name)) joints.push(o); });
+    for (const o of joints) o.parent.remove(o);
+  }
+
+  const idleClip = idleSrc.animations[0];
+  const talkClip = talkSrc.animations[0];
+
+  const characterAssets = {
+    rigs: { male: maleRig, female: femaleRig, neutral: maleRig },
+    clips: {
+      male: retargetForRig(maleRig, idleClip, talkClip),
+      female: retargetForRig(femaleRig, idleClip, talkClip),
     },
-    idle: idle.animations[0],
-    talk: talk.animations[0],
   };
+  characterAssets.clips.neutral = characterAssets.clips.male;
   return characterAssets;
+}
+
+// The largest SkinnedMesh remaining after _Joints removal is the character's
+// real body ("Beta_Surface" / "Alpha_Surface" for X Bot / Y Bot).
+function mainSkinnedMesh(rig) {
+  let best = null;
+  rig.traverse((o) => {
+    if (o.isSkinnedMesh) {
+      if (!best || o.skeleton.bones.length > best.skeleton.bones.length) best = o;
+    }
+  });
+  return best;
+}
+
+// Local per-bone rotations copy cleanly between Mixamo rigs, but they still
+// compound down the spine chain (Spine -> Spine1 -> Spine2 -> Neck -> Head).
+// On Remy's proportions that reads as a forward lean; on X/Y Bot the same
+// local angles compound into a much sharper bow that buries the head below
+// close-up framing. Dropping these three from the clip keeps the seated
+// lean (from Spine/Spine1 and the legs/arms) but holds the head upright.
+const UPRIGHT_BONES = ["mixamorigSpine2", "mixamorigNeck", "mixamorigHead"];
+
+function retargetForRig(rig, idleClip, talkClip) {
+  const skinned = mainSkinnedMesh(rig);
+  rig.updateMatrixWorld(true);
+  const hip = skinned.skeleton.bones[0];
+  const hipWorld = new THREE.Vector3();
+  hip.getWorldPosition(hipWorld);
+  const hipScale = hipWorld.y / REMY_HIP_Y;
+
+  function scaledHipClip(clip) {
+    const out = clip.clone();
+    const hipTrack = out.tracks.find((t) => t.name === hip.name + ".position");
+    if (hipTrack) for (let i = 0; i < hipTrack.values.length; i++) hipTrack.values[i] *= hipScale;
+    out.tracks = out.tracks.filter(
+      (t) => !UPRIGHT_BONES.some((name) => t.name === name + ".quaternion"),
+    );
+    return out;
+  }
+  return { idle: scaledHipClip(idleClip), talk: scaledHipClip(talkClip) };
 }
 
 // Scale + ground a loaded object: longest horizontal axis -> targetLen, sit on y=0,
@@ -113,6 +178,16 @@ function inferPresentation(charObj) {
   return charObj.role === "protagonist" ? "male" : "neutral";
 }
 
+function findBone(root, names) {
+  let found = null;
+  root.traverse((o) => {
+    if (found || !o.isBone) return;
+    const clean = o.name.replace(/^.*:/, "");
+    if (names.includes(o.name) || names.includes(clean)) found = o;
+  });
+  return found;
+}
+
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 class StagePlayer {
@@ -125,7 +200,7 @@ class StagePlayer {
     this.playing = false;
     this.ready = false;
     this.disposed = false;
-    this.chars = new Map(); // character_id -> {group, model, mixer, idle, talk, color, role, ring, plate}
+    this.chars = new Map(); // character_id -> {group, model, mixer, idle, talk, color, role, ring}
     this.director = true;
     this.colorFor = data.colorFor;
     this.nameFor = data.nameFor;
@@ -155,6 +230,14 @@ class StagePlayer {
     load.innerHTML = `<span class="s3d-spin"></span> Loading humanoid cast…`;
     cv.appendChild(load);
     this.loadEl = load;
+
+    const lt = document.createElement("div");
+    lt.className = "s3d-lowerthird";
+    lt.innerHTML = `<i class="s3d-lt-bar"></i><span class="s3d-lt-text"><b class="s3d-lt-name"></b><small class="s3d-lt-stance"></small></span>`;
+    cv.appendChild(lt);
+    this.lowerThirdEl = lt;
+    this.lowerThirdNameEl = lt.querySelector(".s3d-lt-name");
+    this.lowerThirdStanceEl = lt.querySelector(".s3d-lt-stance");
 
     const cap = document.createElement("div");
     cap.className = "s3d-caption";
@@ -287,7 +370,11 @@ class StagePlayer {
     const headY = heads.length
       ? Math.min(1.55, Math.max(1.12, heads.reduce((a, b) => a + b, 0) / heads.length))
       : 1.15;
-    this.layout = { seatZ, headY, spanX };
+    const frameYs = [...this.chars.values()].map((c) => c.frameY).filter(Number.isFinite);
+    const frameY = frameYs.length
+      ? Math.min(1.2, Math.max(0.82, frameYs.reduce((a, b) => a + b, 0) / frameYs.length))
+      : headY - CROWN_TO_UPPER_BODY_Y;
+    this.layout = { seatZ, headY, frameY, spanX };
   }
 
   _seat(charObj, x, z, faceY, assets, chairGLB) {
@@ -309,22 +396,31 @@ class StagePlayer {
       group.add(chair);
     }
 
-    // skinned Mixamo bot, cloned by presentation so female speakers use X Bot.
+    // skinned Mixamo human: Y Bot for male, X Bot for female presentation,
+    // cloned per seat. `presentation` also drives voice selection below.
     const presentation = inferPresentation(charObj);
     const rig = assets.rigs[presentation] || assets.rigs.neutral;
+    const clips = assets.clips[presentation] || assets.clips.neutral;
     const model = skeletonClone(rig);
     model.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.frustumCulled = false; } });
     group.add(model);
     fitToHeight(model, CHAR_HEIGHT); // scale from T-pose standing height
 
+    // Clips use standard bone-name paths (e.g. "mixamorigHips.position"), so
+    // the mixer's root just needs to contain those named bones — the whole
+    // cloned model works, PropertyBinding resolves by traversal + name.
     const mixer = new THREE.AnimationMixer(model);
-    const idle = mixer.clipAction(assets.idle);
-    const talk = mixer.clipAction(assets.talk);
+    const idle = mixer.clipAction(clips.idle);
+    const talk = mixer.clipAction(clips.talk);
     idle.play(); talk.play();
     idle.setEffectiveWeight(1); talk.setEffectiveWeight(0);
     mixer.update(0);
 
-    model.position.z = BOT_SEAT_Z; // scoot back (local -Z) so the hips sit over the seat
+    // Drop feet to the floor now that the seated pose is applied, and scoot back
+    // slightly (local -Z) so the hips sit over the seat rather than its front edge.
+    const box = new THREE.Box3().setFromObject(model);
+    model.position.y -= box.min.y;
+    model.position.z -= 0.08;
 
     // active-speaker floor ring in the character's colour
     const ring = new THREE.Mesh(
@@ -334,10 +430,6 @@ class StagePlayer {
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.02;
     group.add(ring);
-
-    const plate = this._nameplate(this.nameFor(id), color);
-    plate.position.set(0, 1.65, 0);
-    group.add(plate);
 
     const character = {
       group,
@@ -350,75 +442,67 @@ class StagePlayer {
       role: charObj.role,
       presentation,
       ring,
-      plate,
-      floorClearance: 0,
       headY: 1.3,
+      frameY: 0.95,
     };
-    this._settleSeatedPose(character);
+    this._measureSeatedHead(character);
     this.chars.set(id, character);
   }
 
-  _settleSeatedPose(ch) {
+  // One-time measurement (not a per-frame reground): the model was already
+  // grounded in _seat(), so this reads the actual Mixamo head bone. Bounding
+  // boxes include raised hands during speech poses and aim the camera too high.
+  _measureSeatedHead(ch) {
     ch.model.updateMatrixWorld(true);
+    const head = findBone(ch.model, HEAD_BONE_NAMES);
+    if (head) {
+      const pos = new THREE.Vector3();
+      head.getWorldPosition(pos);
+      ch.headBoneY = pos.y;
+      ch.headY = pos.y + HEAD_TO_CROWN_Y;
+      ch.frameY = ch.headY - CROWN_TO_UPPER_BODY_Y;
+      return;
+    }
+
     const box = new THREE.Box3().setFromObject(ch.model);
-    if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return;
-
-    ch.model.position.y += BOT_SEAT_Y - box.min.y;
-    ch.model.updateMatrixWorld(true);
-
-    const settled = new THREE.Box3().setFromObject(ch.model);
-    ch.floorClearance = settled.min.y;
-    ch.headY = settled.max.y;
-    ch.plate.position.y = Math.min(2.05, Math.max(1.58, ch.headY + 0.42));
-  }
-
-  _nameplate(text, color) {
-    const c = document.createElement("canvas");
-    c.width = 256; c.height = 64;
-    const ctx = c.getContext("2d");
-    ctx.fillStyle = "rgba(10,13,17,0.82)";
-    roundRect(ctx, 4, 12, 248, 40, 12); ctx.fill();
-    ctx.strokeStyle = "#" + color.toString(16).padStart(6, "0");
-    ctx.lineWidth = 3; roundRect(ctx, 4, 12, 248, 40, 12); ctx.stroke();
-    ctx.fillStyle = "#e9ecf2";
-    ctx.font = "600 26px -apple-system,Segoe UI,Inter,sans-serif";
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(text, 128, 33, 232);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-    spr.scale.set(PLATE_W, PLATE_H, 1);
-    spr.renderOrder = 10;
-    return spr;
+    if (Number.isFinite(box.max.y)) {
+      ch.headY = box.max.y;
+      ch.frameY = box.max.y - CROWN_TO_UPPER_BODY_Y;
+    }
   }
 
   // ---------- camera shots ----------
+  // Heights are kept close to headY (near eye-level) rather than craned above
+  // the cast — a broadcast panel shot looks across the table, not down on it.
   _shot(seg) {
     const L = this.layout, sp = seg.speaker_id;
     const ch = this.chars.get(sp);
     const cx = ch ? ch.group.position.x : 0;
+    const headY = Number.isFinite(ch?.headY) ? ch.headY : L.headY;
+    const frameY = Number.isFinite(ch?.frameY) ? ch.frameY : (L.frameY || headY - CROWN_TO_UPPER_BODY_Y);
+    const closeFrameY = Math.max(0.72, headY - CLOSE_UPPER_BODY_DROP_Y);
     switch (seg.camera?.shot) {
       case "protagonist_close":
-        // Near-table angle looking at the protagonist's front, clear of the back plate.
-        return { pos: V(0.45, L.headY + 0.9, -0.85), tgt: V(0, L.headY - 0.1, L.seatZ) };
+        // Waist-up view from the table edge: upper torso fills the frame.
+        return { pos: V(0.35, headY + 0.04, L.seatZ - CLOSE_CAMERA_TABLE_OFFSET_Z), tgt: V(0, closeFrameY, L.seatZ) };
       case "challenger_close":
-        // Across the table onto the speaking challenger's face.
-        return { pos: V(cx * 0.5, L.headY + 0.45, 0.4), tgt: V(cx, L.headY - 0.05, -L.seatZ) };
+        // Match the protagonist crop for challengers on the opposite bench.
+        return { pos: V(cx * 0.58, headY + 0.04, -L.seatZ + CLOSE_CAMERA_TABLE_OFFSET_Z), tgt: V(cx, closeFrameY, -L.seatZ) };
       case "two_shot":
         // Side profile across the table showing both benches.
-        return { pos: V(this.tableDim.width / 2 + 2.1, L.headY + 0.65, 0.1), tgt: V(0, L.headY - 0.05, 0) };
+        return { pos: V(this.tableDim.width / 2 + 2.1, L.headY + 0.12, 0.1), tgt: V(0, L.frameY, 0) };
       case "reaction":
-        return { pos: V(-(this.tableDim.width / 2 + 1.6), L.headY + 1.05, L.seatZ + 0.3), tgt: V(0, L.headY - 0.1, -L.seatZ * 0.4) };
+        return { pos: V(-(this.tableDim.width / 2 + 1.6), L.headY + 0.18, L.seatZ + 0.3), tgt: V(0, L.frameY, -L.seatZ * 0.4) };
       case "wide_master":
       default:
-        return { pos: V(0, L.headY + 1.55, L.seatZ + 3.5), tgt: V(0, L.headY - 0.1, 0) };
+        return { pos: V(0, L.headY + 0.25, L.seatZ + 3.5), tgt: V(0, L.frameY, 0) };
     }
   }
 
   _frameWide() {
-    const L = this.layout || { headY: 1.15, seatZ: 1.1 };
-    this.camDesiredPos = V(0, L.headY + 1.8, L.seatZ + 3.9);
-    this.camDesiredTarget = V(0, L.headY - 0.1, 0);
+    const L = this.layout || { headY: 1.15, frameY: 0.9, seatZ: 1.1 };
+    this.camDesiredPos = V(0, L.headY + 0.3, L.seatZ + 3.9);
+    this.camDesiredTarget = V(0, L.frameY, 0);
     this.camera.position.copy(this.camDesiredPos);
     this.controls.target.copy(this.camDesiredTarget);
   }
@@ -479,8 +563,38 @@ class StagePlayer {
       ? `<span class="ritual">${esc(seg.dialogue)}</span>`
       : `<b style="color:#${(ch?.color || 0xffffff).toString(16).padStart(6, "0")}">${esc(who)}</b> ${esc(seg.dialogue)}`;
     this.captionEl.classList.add("on");
+    this._setLowerThird(isCaption ? null : seg.speaker_id);
   }
-  _clearSpeaking() { this.activeId = null; }
+  _clearSpeaking() { this.activeId = null; this._setLowerThird(null); }
+
+  // Broadcast-style lower third: name + stance, fixed in the lower-left of
+  // frame. Re-plays its slide-in whenever the active speaker changes; hides
+  // during non-spoken caption beats (no one to attribute it to).
+  _setLowerThird(speakerId) {
+    if (!speakerId) {
+      this.lowerThirdEl.classList.remove("on");
+      this._lowerThirdSpeaker = null;
+      return;
+    }
+    if (speakerId === this._lowerThirdSpeaker) return; // same speaker holds; no re-animate
+    this._lowerThirdSpeaker = speakerId;
+    const ch = this.chars.get(speakerId);
+    const color = ch ? "#" + ch.color.toString(16).padStart(6, "0") : "#7b97ff";
+    this.lowerThirdEl.style.setProperty("--c", color);
+    this.lowerThirdNameEl.textContent = this.nameFor(speakerId);
+    this.lowerThirdStanceEl.textContent = this._stanceFor(speakerId);
+    // Restart the CSS transition even if it's already showing (speaker cuts).
+    this.lowerThirdEl.classList.remove("on");
+    void this.lowerThirdEl.offsetWidth; // force reflow
+    this.lowerThirdEl.classList.add("on");
+  }
+
+  _stanceFor(speakerId) {
+    const c = (this.data.cast || []).find((x) => x.character_id === speakerId);
+    if (!c) return "";
+    if (c.role === "protagonist") return c.stance === "against" ? "Against" : "For";
+    return c.stance === "for" ? "For" : "Against";
+  }
 
   _speakCurrent() {
     const seg = this.segments[this.cur];
@@ -587,11 +701,7 @@ class StagePlayer {
       ch.talk.setEffectiveWeight(ch.talkW);
       ch.idle.setEffectiveWeight(1 - ch.talkW);
       ch.mixer.update(dt);
-      this._settleSeatedPose(ch);
       ch.ring.material.opacity += ((speaking ? 0.55 : 0) - ch.ring.material.opacity) * 0.15;
-      const s = 1 + (speaking ? 0.12 : 0);
-      ch.plate.scale.x += (PLATE_W * s - ch.plate.scale.x) * 0.15;
-      ch.plate.scale.y += (PLATE_H * s - ch.plate.scale.y) * 0.15;
     }
 
     this.controls.update();
@@ -616,15 +726,6 @@ class StagePlayer {
   }
 }
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 let current = null;
@@ -634,5 +735,6 @@ window.YVM3D = {
     if (!host) return;
     if (current) current.dispose();
     current = new StagePlayer(host, data);
+    window.__YVM3D_DEBUG = current;
   },
 };

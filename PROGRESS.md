@@ -55,10 +55,20 @@ Sub-tasks:
       captions, a 9:16 crop guide, browser/CosyVoice audio playback, and CC0
       table/chair props.
 - [x] **Male/female character split**: Y Bot is used for male-presenting
-      speakers and X Bot for female-presenting speakers.
+      speakers and X Bot for female-presenting speakers. Both share Mixamo's
+      canonical local bone-rotation convention with the seated idle/talking
+      clips (authored for Remy), so those clips replay directly on either rig;
+      only the hip *position* track is rescaled (Remy's raw units run ~2x
+      larger than X/Y Bot's). Their bundled "*_Joints" debug mesh is removed
+      at load time (duplicate bone names otherwise make animation binding
+      ambiguous), and the mixer targets the whole cloned model, not the
+      SkinnedMesh alone, so it can resolve tracks by bone name.
 - [x] **Dialogue flow upgrade**: one shared claim with room crossfire, rotating
       challenger follow-ups, and no repeated one-on-one voted-out segments.
-- [x] **Backend tests**: 28 tests passing for state machine, scene contract,
+- [x] **Close-up camera framing**: seated head height is measured from the
+      Mixamo head bone instead of the animated bounding box (raised hands were
+      inflating the target), and close shots now frame the visible upper body.
+- [x] **Backend tests**: 30 tests passing for state machine, scene contract,
       voice mapping, determinism, schemas, safety and metrics.
 - [ ] Drive the studio-set `.glb` itself (not just procedural/themed floor).
 - [ ] Add visemes / mouth-sync from the master audio (player currently uses

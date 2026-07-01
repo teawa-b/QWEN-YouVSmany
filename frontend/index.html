@@ -206,6 +206,19 @@
   .s3d-crop{position:absolute;top:0;bottom:0;left:50%;transform:translateX(-50%);
     aspect-ratio:9/16;height:100%;border-left:1px dashed rgba(255,255,255,.22);
     border-right:1px dashed rgba(255,255,255,.22);pointer-events:none}
+  .s3d-lowerthird{position:absolute;left:14px;bottom:66px;max-width:72%;display:flex;
+    align-items:stretch;opacity:0;transform:translateX(-26px);pointer-events:none;
+    transition:opacity .32s ease,transform .4s cubic-bezier(.22,.9,.32,1)}
+  .s3d-lowerthird.on{opacity:1;transform:none}
+  .s3d-lt-bar{width:4px;border-radius:2px;flex:0 0 auto;background:var(--c,#7b97ff);
+    box-shadow:0 0 10px var(--c,#7b97ff)}
+  .s3d-lt-text{margin-left:9px;min-width:0;display:flex;flex-direction:column;gap:1px;
+    background:rgba(8,10,14,.8);backdrop-filter:blur(3px);border:1px solid var(--border);
+    border-radius:8px;padding:6px 14px}
+  .s3d-lt-name{display:block;font-size:15.5px;font-weight:700;color:#fff;line-height:1.25;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .s3d-lt-stance{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.09em;
+    font-weight:700;color:var(--c,#9fb0c9)}
   .s3d-caption{position:absolute;left:14px;right:14px;bottom:12px;background:rgba(8,10,14,.74);
     backdrop-filter:blur(3px);border:1px solid var(--border);border-radius:10px;padding:9px 13px;
     font-size:14px;line-height:1.45;color:var(--text);opacity:0;transform:translateY(6px);transition:.2s;max-height:38%;overflow:hidden}

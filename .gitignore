@@ -21,6 +21,7 @@ venv/
 /backend/runs/
 /.artifacts/
 /backend/.artifacts/
+/output/
 
 # Frontend build outputs if a bundler is added later
 /frontend/dist/

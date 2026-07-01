@@ -376,7 +376,8 @@ fetch(api("/health")).then(r=>r.json()).then(h=>{
   const p=$("#prov");
   const live = h.provider==="qwen";
   p.classList.toggle("live", live);
-  p.innerHTML = `<span class="dot"></span>provider <b>${h.provider}</b>${live?` · ${h.model}`:""}`;
+  const tts = h.tts_provider ? ` · TTS <b>${h.tts_provider}</b>${h.tts_ready===false?" (not ready)":""}` : "";
+  p.innerHTML = `<span class="dot"></span>provider <b>${h.provider}</b>${live?` · ${h.model}`:""}${tts}`;
 }).catch(()=>{ $("#prov").innerHTML='<span class="dot"></span>provider unknown'; });
 
 // ---- run ----

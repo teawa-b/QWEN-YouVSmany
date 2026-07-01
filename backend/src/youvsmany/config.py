@@ -31,7 +31,9 @@ class Settings:
     )
     qwen_tts_model: str = os.getenv("QWEN_TTS_MODEL", "cosyvoice-v3-plus")
     # Provider for the master audio timeline: "mock" (offline) or "qwen" (live).
-    tts_provider: str = os.getenv("YVM_TTS_PROVIDER", "mock").lower()
+    tts_provider: str = os.getenv(
+        "YVM_TTS_PROVIDER", "qwen" if os.getenv("QWEN_API_KEY") else "mock"
+    ).lower()
     run_dir: str = os.getenv("YVM_RUN_DIR", "runs")
     # Where rendered TTS clips are written and served from (mounted at /audio).
     audio_dir: str = os.getenv("YVM_AUDIO_DIR", "runs/audio")

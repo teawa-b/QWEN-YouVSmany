@@ -13,6 +13,7 @@ Media endpoints (captures/images/videos/package) belong to later phases.
 from __future__ import annotations
 
 import os
+from importlib.util import find_spec
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -100,8 +101,21 @@ def index() -> dict:
 
 @app.get("/health")
 def health() -> dict:
+    settings = get_settings()
     provider = _provider()
-    return {"status": "ok", "provider": provider.name, "model": provider.model}
+    tts_ready = (
+        settings.tts_provider == "qwen"
+        and bool(settings.qwen_api_key)
+        and find_spec("dashscope") is not None
+    )
+    return {
+        "status": "ok",
+        "provider": provider.name,
+        "model": provider.model,
+        "tts_provider": settings.tts_provider,
+        "tts_model": settings.qwen_tts_model if settings.tts_provider == "qwen" else "mock-tts-1",
+        "tts_ready": tts_ready,
+    }
 
 
 @app.post("/episodes/run")

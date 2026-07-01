@@ -48,11 +48,14 @@ createServer((req, res) => {
 
   if (!filePath.startsWith(root) || !existsSync(filePath)) {
     const index = readFileSync(join(root, "index.html"));
-    res.writeHead(200, { "Content-Type": types[".html"] });
+    res.writeHead(200, { "Content-Type": types[".html"], "Cache-Control": "no-store" });
     return res.end(index);
   }
 
-  res.writeHead(200, { "Content-Type": types[extname(filePath)] || "application/octet-stream" });
+  res.writeHead(200, {
+    "Content-Type": types[extname(filePath)] || "application/octet-stream",
+    "Cache-Control": "no-store",
+  });
   createReadStream(filePath).pipe(res);
 }).listen(port, "0.0.0.0", () => {
   console.log(`Frontend listening on ${port}`);

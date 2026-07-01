@@ -16,6 +16,10 @@ const PALETTE = [0xf0997b, 0x5dcaa5, 0xd4537e, 0xefbf4f, 0x85b7eb];
 const ACCENT = 0x7b97ff;
 const CHAR_HEIGHT = 1.7;   // target standing height (m) for scaling the Mixamo rig
 const CHAIR_HEIGHT = 0.92; // real-ish chair height (m); seat lands ~0.46
+const BOT_SEAT_Z = -0.12;
+const BOT_SEAT_Y = -0.28;
+const PLATE_W = 0.68;
+const PLATE_H = 0.17;
 
 // Themed studio look per premade set id (matches the manifest's scene_template).
 const THEMES = {
@@ -97,6 +101,16 @@ function fitToHeight(obj, targetH) {
   obj.position.y -= box.min.y;
   obj.updateMatrixWorld(true);
   return targetH / h;
+}
+
+function inferPresentation(charObj) {
+  const explicit = String(charObj.visual_presentation || "").toLowerCase();
+  if (["male", "female", "neutral"].includes(explicit)) return explicit;
+
+  const hints = `${charObj.character_id || ""} ${charObj.display_name || ""}`.toLowerCase();
+  if (/\b(female|woman|girl|priya|lena|iris|mara|maya|sara|nora|ava)\b/.test(hints)) return "female";
+  if (/\b(male|man|boy|devin|otis|tom|alex|sam|leo)\b/.test(hints)) return "male";
+  return charObj.role === "protagonist" ? "male" : "neutral";
 }
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -269,7 +283,11 @@ class StagePlayer {
     challengers.forEach((c, i) => this._seat(c, xs[i], -seatZ, 0, assets, chairGLB));
     this._seat(protagonist, 0, seatZ, Math.PI, assets, chairGLB); // faces -Z toward the bench
 
-    this.layout = { seatZ, headY: 1.15, spanX };
+    const heads = [...this.chars.values()].map((c) => c.headY).filter(Number.isFinite);
+    const headY = heads.length
+      ? Math.min(1.55, Math.max(1.12, heads.reduce((a, b) => a + b, 0) / heads.length))
+      : 1.15;
+    this.layout = { seatZ, headY, spanX };
   }
 
   _seat(charObj, x, z, faceY, assets, chairGLB) {
@@ -292,7 +310,7 @@ class StagePlayer {
     }
 
     // skinned Mixamo bot, cloned by presentation so female speakers use X Bot.
-    const presentation = charObj.visual_presentation || "neutral";
+    const presentation = inferPresentation(charObj);
     const rig = assets.rigs[presentation] || assets.rigs.neutral;
     const model = skeletonClone(rig);
     model.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.frustumCulled = false; } });
@@ -306,10 +324,7 @@ class StagePlayer {
     idle.setEffectiveWeight(1); talk.setEffectiveWeight(0);
     mixer.update(0);
 
-    // drop feet to the floor now that the seated pose is applied
-    const box = new THREE.Box3().setFromObject(model);
-    model.position.y -= box.min.y;
-    model.position.z -= 0.08; // scoot back (local -Z) so the hips sit over the seat
+    model.position.z = BOT_SEAT_Z; // scoot back (local -Z) so the hips sit over the seat
 
     // active-speaker floor ring in the character's colour
     const ring = new THREE.Mesh(
@@ -321,10 +336,10 @@ class StagePlayer {
     group.add(ring);
 
     const plate = this._nameplate(this.nameFor(id), color);
-    plate.position.set(0, 1.9, 0);
+    plate.position.set(0, 1.65, 0);
     group.add(plate);
 
-    this.chars.set(id, {
+    const character = {
       group,
       model,
       mixer,
@@ -336,7 +351,25 @@ class StagePlayer {
       presentation,
       ring,
       plate,
-    });
+      floorClearance: 0,
+      headY: 1.3,
+    };
+    this._settleSeatedPose(character);
+    this.chars.set(id, character);
+  }
+
+  _settleSeatedPose(ch) {
+    ch.model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(ch.model);
+    if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return;
+
+    ch.model.position.y += BOT_SEAT_Y - box.min.y;
+    ch.model.updateMatrixWorld(true);
+
+    const settled = new THREE.Box3().setFromObject(ch.model);
+    ch.floorClearance = settled.min.y;
+    ch.headY = settled.max.y;
+    ch.plate.position.y = Math.min(1.95, Math.max(1.55, ch.headY + 0.34));
   }
 
   _nameplate(text, color) {
@@ -354,7 +387,7 @@ class StagePlayer {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-    spr.scale.set(0.9, 0.225, 1);
+    spr.scale.set(PLATE_W, PLATE_H, 1);
     spr.renderOrder = 10;
     return spr;
   }
@@ -366,8 +399,8 @@ class StagePlayer {
     const cx = ch ? ch.group.position.x : 0;
     switch (seg.camera?.shot) {
       case "protagonist_close":
-        // Over-the-shoulder from behind the lone protagonist onto the bench.
-        return { pos: V(0.9, L.headY + 0.85, L.seatZ + 1.6), tgt: V(0, L.headY - 0.05, -L.seatZ * 0.7) };
+        // Near-table angle looking at the protagonist's front, clear of the back plate.
+        return { pos: V(0.55, L.headY + 0.75, -0.15), tgt: V(0, L.headY + 0.05, L.seatZ) };
       case "challenger_close":
         // Across the table onto the speaking challenger's face.
         return { pos: V(cx * 0.5, L.headY + 0.45, 0.4), tgt: V(cx, L.headY - 0.05, -L.seatZ) };
@@ -548,16 +581,17 @@ class StagePlayer {
     }
 
     for (const [id, ch] of this.chars) {
-      ch.mixer.update(dt);
       const speaking = id === this.activeId && this.playing;
       const target = speaking ? 1 : 0;
       ch.talkW += (target - ch.talkW) * (1 - Math.pow(0.02, dt)); // smooth crossfade
       ch.talk.setEffectiveWeight(ch.talkW);
       ch.idle.setEffectiveWeight(1 - ch.talkW);
+      ch.mixer.update(dt);
+      this._settleSeatedPose(ch);
       ch.ring.material.opacity += ((speaking ? 0.55 : 0) - ch.ring.material.opacity) * 0.15;
       const s = 1 + (speaking ? 0.12 : 0);
-      ch.plate.scale.x += (0.9 * s - ch.plate.scale.x) * 0.15;
-      ch.plate.scale.y += (0.225 * s - ch.plate.scale.y) * 0.15;
+      ch.plate.scale.x += (PLATE_W * s - ch.plate.scale.x) * 0.15;
+      ch.plate.scale.y += (PLATE_H * s - ch.plate.scale.y) * 0.15;
     }
 
     this.controls.update();

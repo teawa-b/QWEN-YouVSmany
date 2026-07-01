@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from youvsmany.adapters.mock_provider import MockProvider
+from youvsmany.adapters.factory import effective_tts_provider
 from youvsmany.agents import orchestrator
 from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
@@ -103,8 +104,9 @@ def index() -> dict:
 def health() -> dict:
     settings = get_settings()
     provider = _provider()
+    tts_provider = effective_tts_provider(settings)
     tts_ready = (
-        settings.tts_provider == "qwen"
+        tts_provider == "qwen"
         and bool(settings.qwen_api_key)
         and find_spec("dashscope") is not None
     )
@@ -112,8 +114,9 @@ def health() -> dict:
         "status": "ok",
         "provider": provider.name,
         "model": provider.model,
-        "tts_provider": settings.tts_provider,
-        "tts_model": settings.qwen_tts_model if settings.tts_provider == "qwen" else "mock-tts-1",
+        "tts_provider": tts_provider,
+        "tts_configured": settings.tts_provider,
+        "tts_model": settings.qwen_tts_model if tts_provider == "qwen" else "mock-tts-1",
         "tts_ready": tts_ready,
     }
 

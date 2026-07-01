@@ -23,9 +23,19 @@ def build_provider(settings: Settings | None = None) -> Provider:
     return MockProvider()
 
 
+def effective_tts_provider(settings: Settings | None = None) -> str:
+    settings = settings or get_settings()
+    # Mock debates should still use live CosyVoice clips when the hosted backend
+    # has a Qwen key. This lets Railway run deterministic text generation while
+    # avoiding robotic browser SpeechSynthesis.
+    if settings.qwen_api_key and settings.tts_provider in {"mock", "qwen", "cosyvoice"}:
+        return "qwen"
+    return settings.tts_provider
+
+
 def build_tts_provider(settings: Settings | None = None) -> TTSProvider:
     settings = settings or get_settings()
-    if settings.tts_provider == "qwen":
+    if effective_tts_provider(settings) == "qwen":
         # Fall back to offline mock rather than crash if the key or the dashscope
         # SDK is missing, so a running app degrades gracefully to browser voices.
         try:

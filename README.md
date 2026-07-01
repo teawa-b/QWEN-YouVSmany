@@ -128,6 +128,20 @@ cp backend/.env.example backend/.env
 # QWEN_TEXT_MODEL=qwen3.7-plus
 ```
 
+For hosted browser playback, set the Qwen key on the backend service even when
+`YVM_PROVIDER` stays `mock`. The API will keep deterministic mock debate text
+but use Qwen Cloud CosyVoice for the scene audio timeline:
+
+```text
+QWEN_API_KEY=sk-...
+YVM_TTS_PROVIDER=qwen
+QWEN_TTS_MODEL=cosyvoice-v3-plus
+QWEN_WS_URL=wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference
+```
+
+Check `GET /health`; CosyVoice is available when it reports
+`"tts_provider":"qwen"` and `"tts_ready":true`.
+
 ## Roadmap
 
 Phase 2 audio/staging, Phase 3 still conversion, Phase 4 video transform,

@@ -52,9 +52,19 @@ Sub-tasks:
       simple primitive geometry, real loadable binaries, sized to stage bounds).
       Swap-in-place for final art later; no code changes needed.
 - [ ] Confirm the exact Qwen Cloud TTS model id + voice ids (currently env-driven,
-      defaults to `qwen-tts`).
-- [ ] **Three.js scene player** that loads the chosen premade set and drives it
-      from the manifest (marks, camera cuts, visemes from the master audio).
+      defaults to `qwen-tts`). Voices are wired end-to-end: with
+      `YVM_TTS_PROVIDER=qwen` + `QWEN_API_KEY` the manifest audio cues carry real
+      clip URLs and the player streams them; without a key the player falls back to
+      distinct browser speech voices per character so the scene still talks.
+- [x] **Three.js scene player** (`frontend/scene3d.js`) — drives the manifest live:
+      a rectangular debate table (3 challengers vs the lone protagonist), capsule
+      characters, camera cuts (wide / protagonist-close / challenger-close / reaction
+      / two-shot), per-segment lean/talk animation, captions, a 9:16 crop guide, and
+      per-character voices. Props are CC0 low-poly assets from poly.pizza
+      (`frontend/assets/props/` — Quaternius table + chair). Studio look is themed
+      procedurally per set; loading the premade set `.glb` as backdrop is still TODO.
+- [ ] Drive the studio-set `.glb` itself (not just procedural floor) + add visemes
+      / mouth-sync from the master audio (player currently uses a talk bob).
 - [ ] **Capture**: full base edit, per-segment shot clips, hero stills.
 - [ ] **Tests**: speaker timing, camera correctness, 9:16 crop safety,
       deterministic replay from the manifest.

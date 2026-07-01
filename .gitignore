@@ -26,6 +26,9 @@ venv/
 /frontend/dist/
 /frontend/build/
 
+# Local server logs
+*.log
+
 # OS / editor
 .DS_Store
 .idea/

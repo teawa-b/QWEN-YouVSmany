@@ -4,6 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>You Vs Many — Debate Showrunner</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 <style>
   :root{
     --bg:#0b0d11; --bg-soft:#101319; --panel:#14181f; --panel-2:#1a1f29;
@@ -181,6 +189,34 @@
   .bdg.hero{color:#bccbff;background:var(--accent-soft);border:1px solid var(--accent-bd)}
   .bdg.short{color:var(--ok);background:rgba(94,196,140,.1);border:1px solid rgba(94,196,140,.4)}
   .bdg.cap{color:var(--warn);background:rgba(239,191,79,.08);border:1px dashed rgba(239,191,79,.45)}
+
+  /* Phase 2 — 3D stage player */
+  .stage3d{margin:6px 0 14px}
+  .s3d-canvas{position:relative;width:100%;aspect-ratio:16/9;background:#0a0c10;border:1px solid var(--border);
+    border-radius:var(--radius-sm);overflow:hidden}
+  .s3d-canvas canvas{display:block;width:100%!important;height:100%!important}
+  .s3d-crop{position:absolute;top:0;bottom:0;left:50%;transform:translateX(-50%);
+    aspect-ratio:9/16;height:100%;border-left:1px dashed rgba(255,255,255,.22);
+    border-right:1px dashed rgba(255,255,255,.22);pointer-events:none}
+  .s3d-caption{position:absolute;left:14px;right:14px;bottom:12px;background:rgba(8,10,14,.74);
+    backdrop-filter:blur(3px);border:1px solid var(--border);border-radius:10px;padding:9px 13px;
+    font-size:14px;line-height:1.45;color:var(--text);opacity:0;transform:translateY(6px);transition:.2s;max-height:38%;overflow:hidden}
+  .s3d-caption.on{opacity:1;transform:none}
+  .s3d-caption .ritual{color:var(--warn);font-style:italic}
+  .s3d-shot{position:absolute;top:10px;left:12px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted);background:rgba(8,10,14,.6);border:1px solid var(--border);border-radius:6px;padding:3px 8px}
+  .s3d-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;
+    color:var(--muted);font-size:13.5px;background:rgba(8,10,14,.35)}
+  .s3d-spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.28);border-top-color:var(--accent);
+    border-radius:50%;display:inline-block;animation:sp .7s linear infinite}
+  .s3d-controls{display:flex;align-items:center;gap:11px;margin-top:10px}
+  .s3d-btn{appearance:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:var(--text);
+    background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:8px 14px;transition:.15s}
+  .s3d-btn:hover{border-color:var(--accent-bd);color:#fff}
+  .s3d-play{color:#0b0d11;background:linear-gradient(180deg,#a9bcff,#7b97ff);border:0}
+  .s3d-progress{flex:1;height:5px;border-radius:3px;background:var(--bg-soft);overflow:hidden}
+  .s3d-progress > i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+  .s3d-seg{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--faint);min-width:74px;text-align:right}
 
   #err{display:none;margin-top:16px;background:rgba(226,117,111,.1);border:1px solid rgba(226,117,111,.4);
     color:#f0a39e;border-radius:var(--radius-sm);padding:13px 16px;font-size:14px}
@@ -467,6 +503,9 @@ function render(d){
     const colOf = cid => cid==="caption" ? MOD : (colorFor[cid]||MOD);
 
     out.push(`<h2 class="sec">Scene manifest · staging</h2>`);
+    // Live 3D stage: rectangular table, 3 challengers vs the lone protagonist,
+    // capsule characters, camera cuts + voices driven by the manifest.
+    out.push(`<div id="stage3d" class="stage3d"></div>`);
     const tpl = sc.scene_template;
     if(tpl){
       out.push(`<div class="setcard">
@@ -541,6 +580,17 @@ function render(d){
   const R = $("#results");
   R.innerHTML = `<div class="card">${out.join("")}</div>`;
   R.style.display="block";
+
+  // Mount the live 3D stage from the manifest (module defines window.YVM3D).
+  if(window.YVM3D && d.scene){
+    window.YVM3D.show({
+      scene: d.scene,
+      cast: d.cast,
+      colorFor: id => parseInt(String(colorFor[id]||"#888888").slice(1),16),
+      nameFor: id => (d.cast.find(c=>c.character_id===id)||{}).display_name || id,
+    });
+  }
+
   R.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
@@ -557,5 +607,6 @@ function metricPlain(label,val,color){
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 </script>
+<script type="module" src="scene3d.js"></script>
 </body>
 </html>

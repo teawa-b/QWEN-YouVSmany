@@ -32,11 +32,11 @@ def build_round_plan(
         },
         system=(
             "You are the Director. Lay out the round structure for a natural "
-            "one-vs-many debate: opening claim, then one challenger at a time in a "
-            "mini-duel with the protagonist, then optional rapid pressure only if the "
-            "cast is too small, and a closing summary. Create exactly one contention "
-            "slot per challenger, copying its challenger_id and contention_tag VERBATIM "
-            "from the list provided. Return JSON matching RoundPlan."
+            "one-vs-many debate: one shared claim on the floor, every challenger "
+            "pressing that same claim from a distinct angle, rotating follow-ups, "
+            "and a closing summary. Create exactly one contention slot per challenger, "
+            "copying its challenger_id and contention_tag VERBATIM from the list provided. "
+            "Return JSON matching RoundPlan."
         ),
         instruction=(
             f"Topic: {brief.topic!r}. Build one contention slot for each of these "
@@ -139,3 +139,69 @@ def segment_passes(num_segments: int, target_turns: int) -> list[int]:
         passes[i % n] += 1
         i += 1
     return passes
+
+
+# --- Shared-room exchange helpers -------------------------------------
+
+
+def room_claim_objective(topic: str) -> str:
+    """Protagonist beat that puts one shared claim in front of the room."""
+    return (
+        f"State the shared claim to the whole room: say 'My claim is that {topic}' "
+        "and give the strongest reason in one punchy line. Invite all challengers "
+        "to attack that same claim, not separate side claims."
+    )
+
+
+def opening_pressure_objective(tag: str, topic: str) -> str:
+    return (
+        f"enter the shared debate by challenging {topic} through {tag}; one concrete "
+        "pressure point, aimed at the protagonist's single claim"
+    )
+
+
+def build_pressure_objective(tag: str, previous_name: str, topic: str) -> str:
+    return (
+        f"build on {previous_name}'s pressure, then sharpen a different {tag} objection "
+        f"against the same claim about {topic}"
+    )
+
+
+def follow_up_objective(tag: str, topic: str) -> str:
+    return (
+        "follow up on the protagonist's answer; keep the fight on the same claim "
+        f"about {topic}, using your {tag} angle"
+    )
+
+
+def answer_room_objective(topic: str) -> str:
+    return (
+        f"answer the room on the single claim about {topic}; group the pressure, "
+        "then defend the core without giving a speech"
+    )
+
+
+def answer_follow_up_objective(tag: str) -> str:
+    return f"reply directly to the {tag} follow-up and keep the central claim alive"
+
+
+def crossfire_pairs(num_challengers: int, target_turns: int) -> int:
+    """How many challenger->protagonist follow-up pairs to run.
+
+    Every challenger gets at least one follow-up after the opening pressure wave.
+    Extra pairs are added round-robin toward the director's target, staying inside
+    the locked 12-24 turn window.
+    """
+    n = max(1, num_challengers)
+    pairs = n
+    fixed_turns = n + 4  # shared claim + opening wave + room answer + closing
+
+    def total(pair_count: int) -> int:
+        return fixed_turns + pair_count * 2
+
+    target = max(12, min(20, target_turns))
+    while total(pairs) + 2 <= min(target, CEILING_TURNS):
+        pairs += 1
+    while total(pairs) < 12 and total(pairs) + 2 <= CEILING_TURNS:
+        pairs += 1
+    return pairs

@@ -37,16 +37,25 @@ function loadFBX(url) {
   return new Promise((res, rej) => fbxLoader.load(url, res, undefined, rej));
 }
 
-// One shared character rig + its animation clips, loaded once.
+// Male/female Mixamo bot rigs + shared animation clips, loaded once.
 let characterAssets = null;
 async function getCharacterAssets() {
   if (characterAssets) return characterAssets;
-  const [rig, idle, talk] = await Promise.all([
-    loadFBX("/assets/characters/remy.fbx"),
+  const [maleRig, femaleRig, idle, talk] = await Promise.all([
+    loadFBX("/assets/characters/y_bot.fbx"),
+    loadFBX("/assets/characters/x_bot.fbx"),
     loadFBX("/assets/characters/anim_idle.fbx"),
     loadFBX("/assets/characters/anim_talking.fbx"),
   ]);
-  characterAssets = { rig, idle: idle.animations[0], talk: talk.animations[0] };
+  characterAssets = {
+    rigs: {
+      male: maleRig,
+      female: femaleRig,
+      neutral: maleRig,
+    },
+    idle: idle.animations[0],
+    talk: talk.animations[0],
+  };
   return characterAssets;
 }
 
@@ -282,8 +291,10 @@ class StagePlayer {
       group.add(chair);
     }
 
-    // skinned Mixamo human, cloned from the shared rig
-    const model = skeletonClone(assets.rig);
+    // skinned Mixamo bot, cloned by presentation so female speakers use X Bot.
+    const presentation = charObj.visual_presentation || "neutral";
+    const rig = assets.rigs[presentation] || assets.rigs.neutral;
+    const model = skeletonClone(rig);
     model.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.frustumCulled = false; } });
     group.add(model);
     fitToHeight(model, CHAR_HEIGHT); // scale from T-pose standing height
@@ -313,7 +324,19 @@ class StagePlayer {
     plate.position.set(0, 1.9, 0);
     group.add(plate);
 
-    this.chars.set(id, { group, model, mixer, idle, talk, talkW: 0, color, role: charObj.role, ring, plate });
+    this.chars.set(id, {
+      group,
+      model,
+      mixer,
+      idle,
+      talk,
+      talkW: 0,
+      color,
+      role: charObj.role,
+      presentation,
+      ring,
+      plate,
+    });
   }
 
   _nameplate(text, color) {
@@ -343,16 +366,19 @@ class StagePlayer {
     const cx = ch ? ch.group.position.x : 0;
     switch (seg.camera?.shot) {
       case "protagonist_close":
-        return { pos: V(0.95, L.headY + 0.35, L.seatZ - 1.35), tgt: V(0, L.headY, L.seatZ) };
+        // Over-the-shoulder from behind the lone protagonist onto the bench.
+        return { pos: V(0.9, L.headY + 0.85, L.seatZ + 1.6), tgt: V(0, L.headY - 0.05, -L.seatZ * 0.7) };
       case "challenger_close":
-        return { pos: V(cx * 0.5, L.headY + 0.5, 0.9), tgt: V(cx, L.headY - 0.05, -L.seatZ) };
+        // Across the table onto the speaking challenger's face.
+        return { pos: V(cx * 0.5, L.headY + 0.45, 0.4), tgt: V(cx, L.headY - 0.05, -L.seatZ) };
       case "two_shot":
-        return { pos: V(this.tableDim.width / 2 + 2.4, L.headY + 0.6, 0.2), tgt: V(0, L.headY - 0.05, 0) };
+        // Side profile across the table showing both benches.
+        return { pos: V(this.tableDim.width / 2 + 2.1, L.headY + 0.65, 0.1), tgt: V(0, L.headY - 0.05, 0) };
       case "reaction":
-        return { pos: V(-(this.tableDim.width / 2 + 1.8), L.headY + 1.2, L.seatZ + 0.6), tgt: V(0, L.headY - 0.1, -L.seatZ * 0.35) };
+        return { pos: V(-(this.tableDim.width / 2 + 1.6), L.headY + 1.05, L.seatZ + 0.3), tgt: V(0, L.headY - 0.1, -L.seatZ * 0.4) };
       case "wide_master":
       default:
-        return { pos: V(0, L.headY + 1.7, L.seatZ + 3.7), tgt: V(0, L.headY - 0.1, 0) };
+        return { pos: V(0, L.headY + 1.55, L.seatZ + 3.5), tgt: V(0, L.headY - 0.1, 0) };
     }
   }
 
@@ -463,7 +489,11 @@ class StagePlayer {
     const cue = (this.scene.audio || []).find(
       (a) => a.speaker_id === seg.speaker_id && Math.abs(a.start_s - seg.start_s) < 0.05,
     );
-    return cue ? cue.audio_ref : null;
+    const ref = cue ? cue.audio_ref : null;
+    // CosyVoice clips are served by the backend (/audio/..); resolve relative
+    // refs against the API origin, not the frontend origin.
+    if (ref && ref.startsWith("/")) return (this.data.apiBase || "") + ref;
+    return ref;
   }
 
   _voiceParamsFor(charId) {
@@ -472,8 +502,22 @@ class StagePlayer {
     const pool = en.length ? en : voices;
     const ch = this.chars.get(charId);
     const idx = ch ? [...this.chars.keys()].indexOf(charId) : 0;
-    const voice = pool.length ? pool[idx % pool.length] : null;
-    const pitch = ch && ch.role === "protagonist" ? 0.85 : [1.18, 0.95, 1.32, 1.05, 0.78][idx % 5];
+    const femaleNames = /female|woman|girl|zira|susan|samantha|victoria|karen|moira|serena|aria/i;
+    const maleNames = /male|man|guy|david|mark|alex|daniel|fred|george|tom/i;
+    const preferred =
+      ch?.presentation === "female"
+        ? pool.filter((v) => femaleNames.test(v.name))
+        : ch?.presentation === "male"
+          ? pool.filter((v) => maleNames.test(v.name))
+          : [];
+    const voicePool = preferred.length ? preferred : pool;
+    const voice = voicePool.length ? voicePool[idx % voicePool.length] : null;
+    const pitch =
+      ch?.presentation === "female"
+        ? [1.22, 1.12, 1.32, 1.18, 1.26][idx % 5]
+        : ch && ch.role === "protagonist"
+          ? 0.85
+          : [0.92, 1.0, 0.86, 1.04, 0.78][idx % 5];
     const rate = ch && ch.role === "protagonist" ? 0.98 : [1.05, 0.97, 1.1, 1.0, 0.93][idx % 5];
     return { voice, pitch, rate };
   }

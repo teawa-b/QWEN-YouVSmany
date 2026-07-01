@@ -17,6 +17,12 @@ class Stance(str, Enum):
     NEUTRAL = "neutral"
 
 
+class VisualPresentation(str, Enum):
+    MALE = "male"
+    FEMALE = "female"
+    NEUTRAL = "neutral"
+
+
 class TopicKind(str, Enum):
     """Opinion topics are free to argue; factual topics must be grounded in a
     SourceBrief and pass a factuality note (blueprint 3.4)."""

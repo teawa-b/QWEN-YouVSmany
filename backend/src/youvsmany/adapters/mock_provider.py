@@ -250,6 +250,7 @@ class MockProvider:
             "display_name": names[0],
             "role": "protagonist",
             "stance": stance,
+            "visual_presentation": _presentation_for_name(names[0]),
             "core_contention": f"{topic} is right on the merits",
             "contention_tag": "thesis",
             "supporting_points": ["clear definition", "strongest case first", "address objections"],
@@ -265,6 +266,7 @@ class MockProvider:
                     "display_name": names[1 + i],
                     "role": "challenger",
                     "stance": opp,
+                    "visual_presentation": _presentation_for_name(names[1 + i]),
                     "core_contention": lib["contention"].format(topic=topic),
                     "contention_tag": tag,
                     "supporting_points": list(lib["points"]),
@@ -306,17 +308,17 @@ class MockProvider:
         tags: list[str] = list(params.get("tags") or [])
         return {
             "thesis": thesis,
-            "opening_objective": "state the thesis and the single strongest reason",
+            "opening_objective": "state the thesis and invite the whole room to challenge one claim",
             "contentions": [
                 {
                     "challenger_id": f"challenger_{t}",
                     "contention_tag": t,
-                    "objective": f"run a two-pass mini-duel on the concrete {t} objection",
+                    "objective": f"press the shared claim from the concrete {t} angle",
                 }
                 for t in tags
             ],
-            "rapid_rebuttal_objective": "urgent follow-ups only when the cast is too small",
-            "closing_objective": "summarise concessions and the unresolved core",
+            "rapid_rebuttal_objective": "extra crossfire only if the room needs more turns",
+            "closing_objective": "summarise the room's strongest pressure and the unresolved core",
             "target_turns": int(params.get("target_turns", 16)),
         }
 
@@ -350,6 +352,17 @@ class MockProvider:
 
 
 _NAME_POOL = ["Mara", "Devin", "Priya", "Otis", "Lena", "Caleb", "Nadia", "Rhys", "Tom", "Iris"]
+_FEMALE_PRESENTING_NAMES = {"mara", "priya", "lena", "nadia", "iris"}
+_MALE_PRESENTING_NAMES = {"devin", "otis", "caleb", "rhys", "tom"}
+
+
+def _presentation_for_name(name: str) -> str:
+    key = name.strip().split()[0].lower()
+    if key in _FEMALE_PRESENTING_NAMES:
+        return "female"
+    if key in _MALE_PRESENTING_NAMES:
+        return "male"
+    return "neutral"
 
 
 def _distinct_names(topic: str, seed: int, count: int) -> list[str]:
@@ -395,6 +408,13 @@ _PROTA_REBUTTALS = [
     "Fine, the edge is messy. But {counter}. I am not backing off.",
 ]
 
+_PROTA_ROOM_REPLIES = [
+    "You are all circling different edges, but the center is still simple: {counter}.",
+    "I hear the pile-on. {opp} sharpened it, but {counter}, so the claim survives.",
+    "Those are three pressures, not three knockouts. {counter_cap}, and that matters most.",
+    "The room is making this sound impossible. It is not: {counter}.",
+]
+
 _PROTA_PUSHBACKS = [
     "Then show why that changes the answer, {opp}. I do not think it does.",
     "That is the point, {opp}: reality is not always clean.",
@@ -409,6 +429,14 @@ _CHALLENGER_OPENERS = [
     "You make this sound obvious, {opp}, but {point} is the hard part.",
     "Here is where it cracks, {opp}: {point}. Answer that, not the easy version.",
     "Be honest, {opp} - {point} is the bit your claim quietly skips.",
+]
+
+_CHALLENGER_BUILDERS = [
+    "Yes, and {opp}'s point gets worse once you add {point}. That is the same claim cracking.",
+    "I agree with {opp} on the pressure, but {point} is the sharper version of it.",
+    "Not just that, {opp}. If {point} matters, the claim is already wobbling.",
+    "{opp} opened the door; {point} is what walks through it. Answer that.",
+    "That is the pile-on, {opp}: {point} is not a side issue, it is the test.",
 ]
 
 _CHALLENGER_PUSHBACKS = [
@@ -477,7 +505,7 @@ def _line(
         if state == "OPENING":
             # Crafted establishing beat: keep the full "surrounded" framing intact.
             return _clip_words(
-                f"One of me, all of you. I am defending that {short}, claim by claim. "
+                f"One of me, all of you. One claim on the floor: {short}. "
                 f"Come change my mind.",
                 30,
             )
@@ -486,11 +514,23 @@ def _line(
                 f"Closing it out: {short} still holds. The others found messy edges, but not "
                 f"a better answer to the main question."
             )
-        elif "first claim" in objective or "next claim" in objective:
-            ordinal = "first" if "first claim" in objective else "next"
+        elif objective.startswith("State the shared claim") or "first claim" in objective or "next claim" in objective:
             # Crafted claim card: keep the whole assertion + the dare to flip it.
-            return _clip_words(f"My {ordinal} claim is that {counter}. Come change my mind.", 18)
-        elif "pushback" in objective or "narrowest" in objective:
+            return _clip_words(
+                f"My claim is that {short}; your best objections can test the edges, "
+                "not erase the center. All of you, change my mind.",
+                30,
+            )
+        elif "answer the room" in objective:
+            tmpl = _pick(_PROTA_ROOM_REPLIES, jitter, bump)
+            base = tmpl.format(
+                opp=opp_name,
+                counter=counter,
+                counter_cap=counter_cap,
+                point=point,
+                short=short,
+            )
+        elif "pushback" in objective or "narrowest" in objective or "follow-up" in objective:
             tmpl = _pick(_PROTA_PUSHBACKS, jitter, bump)
             base = tmpl.format(
                 opp=opp_name,
@@ -506,7 +546,10 @@ def _line(
         if state == "RAPID_REBUTTAL":
             tmpl = _pick(_RAPID_LINES, jitter, bump)
             base = tmpl.format(opp=opp_name, point=point)
-        elif "push" in objective:
+        elif "build on" in objective:
+            tmpl = _pick(_CHALLENGER_BUILDERS, jitter, bump)
+            base = tmpl.format(opp=opp_name, point=point, point_cap=point_cap, rebuttal=rebuttal)
+        elif "push" in objective or "follow up" in objective:
             tmpl = _pick(_CHALLENGER_PUSHBACKS, jitter, bump)
             base = tmpl.format(opp=opp_name, point=point, point_cap=point_cap, rebuttal=rebuttal)
         else:
@@ -516,4 +559,4 @@ def _line(
         # greeting never eats the pressure point, then prepend it whole.
         if objective.startswith("greet your opponent first"):
             return f"{_pick(_GREETINGS, jitter)} {_clip_words(base, max(8, target_words))}"
-    return _clip_words(base, max(8, target_words))
+    return _clip_words(base, max(16, target_words))

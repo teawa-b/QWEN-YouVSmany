@@ -56,33 +56,36 @@ def generate_turn(
             f"go-to rebuttal: {strat.rebuttal}; main points: {', '.join(strat.main_points)}."
         )
 
-    is_claim_beat = speaker.role == Role.PROTAGONIST and "claim is that" in objective
+    is_claim_beat = speaker.role == Role.PROTAGONIST and (
+        "claim is that" in objective or "shared claim" in objective
+    )
 
     if is_claim_beat:
         system = (
-            f"You are {speaker.display_name}, the one person surrounded in a Jubilee "
-            f"'Surrounded'-style show on {topic!r}. You are opening a NEW claim segment: stand and "
-            f"declare your claim to the whole room, starting literally with 'My first claim is "
-            f"that...' or 'My next claim is that...' as the objective says. Assert it - do not "
-            f"react to anyone yet, no one has answered. One punchy sentence, then invite them to "
-            f"change your mind. HARD LIMIT {length_range[1]} words. "
+            f"You are {speaker.display_name}, the one person facing a room of challengers "
+            f"on {topic!r}. Put ONE shared claim on the floor for everyone to attack. "
+            f"Start literally with 'My claim is that...' and make it feel like the same "
+            f"claim all challengers can argue with. One punchy line, then invite the room "
+            f"to change your mind. HARD LIMIT {length_range[1]} words. "
             f'Return JSON: {{"text": ...}}.'
         )
     else:
         system = (
             f"You are {speaker.display_name}, the {speaker.role.value} in a live one-vs-many "
-            f"debate on {topic!r} (a Jubilee 'Surrounded'-style show). You're spirited, sharp "
+            f"debate on {topic!r}. Everyone is arguing over the SAME central claim. "
+            f"You're spirited, sharp "
             f"and conversational - real spoken English, contractions, personality "
             f"(tone: {speaker.personality.tone}). This is a back-and-forth, not a speech.\n"
             f"RULES:\n"
-            f"- React to what {opp} JUST said: paraphrase their actual claim, then hit back.\n"
+            f"- React to what {opp} JUST said: paraphrase their actual claim, then hit back, "
+            f"build on it, or redirect it toward the protagonist.\n"
             f"- Sometimes address them by name ({opp}). Be direct, annoyed if needed, but civil.\n"
             f"- Bring ONE concrete example, number, everyday scenario, or hard question. No abstract filler.\n"
             f"- Your hidden angle is {speaker.contention_tag}; translate it into normal words, "
             f"do not announce the label aloud.\n"
             f"- NEVER use canned stems like 'My objection is...' or 'On {speaker.contention_tag}, "
             f"I'll grant...'. Open differently every time. Sound like a person, not a template.\n"
-            f"- Keep the heat of a real argument: short questions, clipped pushback, plain language.\n"
+            f"- Keep the heat of a real group argument: short questions, clipped pushback, plain language.\n"
             f"- HARD LIMIT {length_range[1]} words. One or two short sentences, ONE sharp point - "
             f"a quick televised exchange, never a monologue or a list. Respect: "
             f"{', '.join(speaker.boundaries)}.\n"
@@ -92,7 +95,7 @@ def generate_turn(
     if latest_opposing_claim:
         reactor = (
             f'{opp} just said: "{latest_opposing_claim}"\n'
-            f"Answer THAT directly - paraphrase their point, then counter it. "
+            f"Answer THAT directly - paraphrase their point, then counter, build, or redirect it. "
         )
     else:
         reactor = ""

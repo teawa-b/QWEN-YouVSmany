@@ -12,7 +12,7 @@ class ContentionSlot(BaseModel):
 
 
 class RoundPlan(BaseModel):
-    """Opening claim, three contention rounds, one rapid rebuttal round and a
+    """One shared claim, challenger pressure angles, rotating crossfire and a
     closing summary (blueprint 3.3 'Structure')."""
 
     thesis: str

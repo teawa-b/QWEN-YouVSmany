@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
-from youvsmany.contracts.enums import Role, Stance
+from youvsmany.contracts.enums import Role, Stance, VisualPresentation
 
 
 class Personality(BaseModel):
@@ -42,6 +42,10 @@ class Character(BaseModel):
     display_name: str
     role: Role
     stance: Stance
+    visual_presentation: VisualPresentation = Field(
+        VisualPresentation.NEUTRAL,
+        description="Presentation used for renderer model and voice selection.",
+    )
     core_contention: str
     contention_tag: str = Field(
         ..., description="Short slug used to verify substantive uniqueness (e.g. 'texture')."

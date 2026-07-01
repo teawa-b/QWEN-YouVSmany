@@ -11,7 +11,7 @@ from __future__ import annotations
 from youvsmany.adapters.tts_base import WORDS_PER_SECOND, TTSProvider
 from youvsmany.agents.scene_templates import select_template
 from youvsmany.contracts.character import Cast
-from youvsmany.contracts.enums import DebateState
+from youvsmany.contracts.enums import DebateState, VisualPresentation
 from youvsmany.contracts.episode import Episode
 from youvsmany.contracts.scene import (
     AnimationTag,
@@ -31,8 +31,11 @@ from youvsmany.contracts.scene import (
 )
 from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID, Transcript
 
-# Plausible Qwen Cloud TTS voice ids; exact ids are confirmed live (see PROGRESS.md).
-VOICE_POOL = ["Ethan", "Cherry", "Chelsie", "Serena", "Dylan", "Jada"]
+# Qwen Cloud CosyVoice-v3-plus system voices: one male (longanyang), one female
+# (longanhuan), both English-capable.
+COSYVOICE_MALE = "longanyang"
+COSYVOICE_FEMALE = "longanhuan"
+VOICE_POOL = [COSYVOICE_MALE, COSYVOICE_FEMALE]
 
 # How a non-spoken caption beat (the voted-out gavel) holds the screen.
 _CAPTION_HOLD_FLOOR_S = 1.0
@@ -142,7 +145,16 @@ def build_scene_manifest(ep: Episode, tts: TTSProvider) -> SceneManifest:
 
 def _assign_voices(cast: Cast) -> dict[str, str]:
     speakers = cast.all_speakers()
-    return {c.character_id: VOICE_POOL[i % len(VOICE_POOL)] for i, c in enumerate(speakers)}
+    assigned: dict[str, str] = {}
+    for i, c in enumerate(speakers):
+        if c.visual_presentation == VisualPresentation.FEMALE:
+            voice = COSYVOICE_FEMALE
+        elif c.visual_presentation == VisualPresentation.MALE:
+            voice = COSYVOICE_MALE
+        else:
+            voice = VOICE_POOL[i % len(VOICE_POOL)]
+        assigned[c.character_id] = voice
+    return assigned
 
 
 def _challenger_x(template: SceneTemplate, i: int, n: int) -> float:

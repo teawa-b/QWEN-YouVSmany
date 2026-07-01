@@ -1,7 +1,7 @@
 from youvsmany.adapters import MockProvider
 from youvsmany.agents import orchestrator
 from youvsmany.contracts.brief import ShowBrief
-from youvsmany.contracts.enums import DebateState
+from youvsmany.contracts.enums import DebateState, VisualPresentation
 from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID
 from youvsmany.evals.metrics import score_episode
 
@@ -30,22 +30,30 @@ def test_exit_criterion_and_duration():
 
 def test_cast_is_protagonist_plus_challengers_only():
     ep = _run()
-    # No moderator voice: the cast is 1 main + N opposing, and the only "speakers"
-    # in the transcript are those debating voices (captions don't count).
+    # No moderator voice: the cast is 1 main + N opposing, and the only speakers
+    # in the transcript are those debating voices (captions do not count).
     assert ep.cast.moderator is None
     assert len(ep.cast.all_speakers()) == 1 + len(ep.cast.challengers)
     spoken = {t.speaker_id for t in ep.transcript.turns if t.speaker_id != CAPTION_SPEAKER_ID}
     assert spoken == {c.character_id for c in ep.cast.all_speakers()}
-    # The scored metric counts the same debating voices, captions excluded.
     assert score_episode(ep).distinct_speakers == 1 + len(ep.cast.challengers)
+
+
+def test_mock_cast_marks_female_presenting_speakers():
+    ep = _run()
+    by_name = {c.display_name: c.visual_presentation for c in ep.cast.all_speakers()}
+    assert by_name["Iris"] == VisualPresentation.FEMALE
+    assert by_name["Mara"] == VisualPresentation.FEMALE
+    assert by_name["Tom"] == VisualPresentation.MALE
 
 
 def test_dominance_cap_no_three_in_a_row():
     ep = _run()
     speakers = [t.speaker_id for t in ep.transcript.turns]
     for i in range(2, len(speakers)):
-        assert not (speakers[i] == speakers[i - 1] == speakers[i - 2]), \
+        assert not (speakers[i] == speakers[i - 1] == speakers[i - 2]), (
             "no speaker should exceed the consecutive-turn cap"
+        )
 
 
 def test_determinism_same_seed():
@@ -60,67 +68,38 @@ def test_distinct_contentions():
     assert len(set(tags)) == len(tags)
 
 
-def _claim_segments(ep):
-    """Split the CONTENTIONS turns into Surrounded-style claim segments: each one
-    opens on a protagonist claim card and closes on a moderator voted-out gavel."""
-    contentions = [t for t in ep.transcript.turns if t.state == DebateState.CONTENTIONS]
-    segments, current = [], []
-    for t in contentions:
-        if t.scene_cue == "claim_card" and current:
-            segments.append(current)
-            current = []
-        current.append(t)
-    if current:
-        segments.append(current)
-    return segments
-
-
-def test_claim_segments_follow_surrounded_rhythm():
+def test_shared_claim_room_crossfire():
     ep = _run(topic="the chicken came before egg", tags=("framing", "evidence", "consequences"))
     protagonist_id = ep.cast.protagonist.character_id
+    contentions = [t for t in ep.transcript.turns if t.state == DebateState.CONTENTIONS]
+    claim_cards = [t for t in contentions if t.scene_cue == "claim_card"]
+    assert len(claim_cards) == 1
+    assert claim_cards[0].speaker_id == protagonist_id
+    assert "my claim is that" in claim_cards[0].text.lower()
 
-    segments = _claim_segments(ep)
-    # One claim segment per challenger, in cast order.
-    assert len(segments) == len(ep.cast.challengers)
+    after_claim = contentions[1:]
+    first_wave = after_claim[: len(ep.cast.challengers)]
+    assert [t.speaker_id for t in first_wave] == [c.character_id for c in ep.cast.challengers]
 
-    for seg_index, (segment, challenger) in enumerate(zip(segments, ep.cast.challengers)):
-        # Opens on the protagonist raising a claim to the room.
-        head = segment[0]
-        assert head.scene_cue == "claim_card"
-        assert head.speaker_id == protagonist_id
-        ordinal = "first claim" if seg_index == 0 else "next claim"
-        assert ordinal in head.text.lower()
+    room_answer = after_claim[len(ep.cast.challengers)]
+    assert room_answer.speaker_id == protagonist_id
 
-        # Closes on a non-spoken voted-out caption naming the challenger — no
-        # moderator voice, just the on-screen ritual beat.
-        tail = segment[-1]
-        assert tail.scene_cue == "voted_out"
-        assert tail.speaker_id == CAPTION_SPEAKER_ID
-        assert tail.speaker_name == ""
-        assert challenger.display_name in tail.text
-
-        # The duel in between is a strict one-on-one: challenger then protagonist,
-        # alternating, never two of the same speaker back to back.
-        duel = segment[1:-1]
-        assert len(duel) >= 2 and len(duel) % 2 == 0
-        for i, turn in enumerate(duel):
-            expected = challenger.character_id if i % 2 == 0 else protagonist_id
-            assert turn.speaker_id == expected
+    followups = after_claim[len(ep.cast.challengers) + 1 :]
+    assert len(followups) >= len(ep.cast.challengers) * 2
+    assert len(followups) % 2 == 0
+    for i in range(0, len(followups), 2):
+        assert followups[i].speaker_id != protagonist_id
+        assert followups[i + 1].speaker_id == protagonist_id
 
     transcript_text = " ".join(t.text for t in ep.transcript.turns)
-    forbidden = ["My objection is", "gap A", "gap B", "weak on", "I'll grant"]
+    forbidden = ["My objection is", "gap A", "gap B", "weak on", "I'll grant", "voted out"]
     assert not any(phrase in transcript_text for phrase in forbidden)
 
 
-def test_every_challenger_is_greeted_and_voted_out():
+def test_every_challenger_gets_opening_and_followup_pressure():
     ep = _run()
-    voted_out = [t for t in ep.transcript.turns if t.scene_cue == "voted_out"]
-    claim_cards = [t for t in ep.transcript.turns if t.scene_cue == "claim_card"]
-    assert len(voted_out) == len(claim_cards) == len(ep.cast.challengers)
-    # Each duel opens with a handshake from the challenger.
-    greetings = ("nice to meet you", "good to meet you", "how's it going")
     for challenger in ep.cast.challengers:
-        first_line = next(
-            t.text.lower() for t in ep.transcript.turns if t.speaker_id == challenger.character_id
-        )
-        assert any(g in first_line for g in greetings)
+        challenger_turns = [
+            t for t in ep.transcript.turns if t.speaker_id == challenger.character_id
+        ]
+        assert len(challenger_turns) >= 2

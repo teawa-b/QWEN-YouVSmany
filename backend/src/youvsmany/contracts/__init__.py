@@ -10,6 +10,7 @@ from youvsmany.contracts.enums import (
     Role,
     Stance,
     TopicKind,
+    VisualPresentation,
 )
 from youvsmany.contracts.brief import ShowBrief, SafetyReport, SourceBrief
 from youvsmany.contracts.character import (
@@ -41,6 +42,7 @@ __all__ = [
     "Role",
     "Stance",
     "TopicKind",
+    "VisualPresentation",
     "ShowBrief",
     "SafetyReport",
     "SourceBrief",

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>You Vs Many — Debate Showrunner</title>
+<title>You Vs Many - Crossfire Showrunner</title>
 <script type="importmap">
 {
   "imports": {
@@ -129,7 +129,15 @@
   .b-foot{margin-top:8px;font-size:11.5px;color:var(--faint);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
     display:flex;gap:12px;flex-wrap:wrap}
 
-  /* Surrounded-style ritual beats */
+  .roomnote{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+  .roomnote span{font-size:12px;color:var(--muted);border:1px solid var(--border);
+    background:var(--bg-soft);border-radius:999px;padding:5px 10px}
+  .transcript{position:relative;padding:2px 0}
+  .transcript:before{content:"";position:absolute;top:8px;bottom:8px;left:50%;width:1px;
+    background:linear-gradient(180deg,transparent,var(--border),transparent);opacity:.7}
+  .transcript .turn,.transcript .claimcard,.transcript .votedout{position:relative}
+
+  /* Shared claim and legacy ritual beats */
   .claimcard{margin:26px 0 6px;padding:15px 18px;border-radius:var(--radius);
     background:linear-gradient(180deg,var(--accent-soft),transparent);
     border:1px solid var(--accent-bd);border-left:3px solid var(--accent)}
@@ -221,6 +229,11 @@
   #err{display:none;margin-top:16px;background:rgba(226,117,111,.1);border:1px solid rgba(226,117,111,.4);
     color:#f0a39e;border-radius:var(--radius-sm);padding:13px 16px;font-size:14px}
   footer{margin-top:40px;color:var(--faint);font-size:12.5px;text-align:center}
+  @media (max-width:720px){
+    .transcript:before{left:19px}
+    .bubble{max-width:calc(100% - 50px)}
+    .turn.right{flex-direction:row}
+  }
 </style>
 </head>
 <body>
@@ -247,7 +260,7 @@
         </div>
       </div>
       <div>
-        <span class="lbl">Challengers</span>
+        <span class="lbl">Challenger voices</span>
         <div class="stepper">
           <button id="ch-minus">–</button><b id="ch-val">3</b><button id="ch-plus">+</button>
         </div>
@@ -267,13 +280,13 @@
 
     <div class="grid" style="margin-top:14px">
       <div style="grid-column:1/-1">
-        <label class="lbl" for="tags">Suggested contention tags <span style="text-transform:none;letter-spacing:0">(optional, comma-separated)</span></label>
+        <label class="lbl" for="tags">Challenger angles <span style="text-transform:none;letter-spacing:0">(optional, comma-separated)</span></label>
         <input type="text" id="tags" placeholder="e.g. texture, tradition, culinary-innovation" />
       </div>
     </div>
 
     <div class="runbar">
-      <button class="run" id="run">Run debate</button>
+      <button class="run" id="run">Run crossfire</button>
       <span class="hint" id="seedhint">seed 0 · deterministic</span>
       <input type="number" id="seed" value="0" min="0" style="width:90px;margin-left:auto" title="determinism seed" />
     </div>
@@ -282,7 +295,7 @@
 
   <div id="results"></div>
 
-  <footer>You Vs Many · the locked transcript is the pivotal artifact every downstream stage inherits.</footer>
+  <footer>You Vs Many - one locked transcript, one claim under pressure.</footer>
 </div>
 
 <script src="config.js"></script>
@@ -394,7 +407,7 @@ $("#run").onclick = async ()=>{
 function setLoading(on){
   const b=$("#run");
   b.disabled=on;
-  b.innerHTML = on ? `<span class="spin"></span>Running pipeline…` : "Run debate";
+  b.innerHTML = on ? `<span class="spin"></span>Running crossfire...` : "Run crossfire";
 }
 function showErr(m){ const e=$("#err"); e.textContent=m; e.style.display="block"; }
 function hideErr(){ $("#err").style.display="none"; }
@@ -417,6 +430,7 @@ function render(d){
 
   out.push(`<div class="statusrow">
     <span class="badge state">${d.state}</span>
+    <span class="badge">shared claim crossfire</span>
     <span class="badge ${approved?'ok':'no'}">${approved?'✓ approved':'not approved'}</span>
     <span class="badge mono">${d.episode_id}</span>
     <span class="badge mono">${m.turns||d.turns.length} turns · ${d.duration_s}s</span>
@@ -434,7 +448,7 @@ function render(d){
   out.push(`<h2 class="sec">Cast</h2><div class="cast">`);
   d.cast.forEach(c=>{
     out.push(`<div class="pc" style="--c:${colorFor[c.character_id]}">
-      <div class="role">${c.role}${c.stance?` · ${c.stance}`:""}</div>
+      <div class="role">${c.role}${c.visual_presentation?` · ${c.visual_presentation}`:""}${c.stance?` · ${c.stance}`:""}</div>
       <div class="nm">${esc(c.display_name)}</div>
       <span class="ct">${esc(c.contention_tag)}</span>
       <div class="cc">${esc(c.core_contention||"")}</div>
@@ -443,17 +457,26 @@ function render(d){
   out.push(`</div>`);
 
   // transcript
-  out.push(`<h2 class="sec">Transcript</h2>`);
+  const challengers = d.cast.filter(c=>c.role==="challenger");
+  const contentionTurns = d.turns.filter(t=>t.state==="contentions" || t.state==="CONTENTIONS");
+  out.push(`<h2 class="sec">Room crossfire</h2>
+    <div class="roomnote">
+      <span>1 shared claim</span>
+      <span>${challengers.length} challenger angles</span>
+      <span>${contentionTurns.length} pressure turns</span>
+    </div>
+    <div class="transcript">`);
   let claimNo = 0;
   d.turns.forEach(t=>{
     const col = colorFor[t.speaker_id]||MOD;
     const role = (d.cast.find(c=>c.character_id===t.speaker_id)||{}).role;
 
-    // Surrounded ritual beats: a claim card opens each duel, the gavel ends it.
+    // Shared claim beat; voted_out remains for older stored transcripts.
     if(t.scene_cue==="claim_card"){
       claimNo++;
+      const claimLabel = claimNo===1 ? "Shared claim" : `Shared claim ${claimNo}`;
       out.push(`<div class="claimcard">
-        <div class="ix">Claim ${claimNo} · <span class="who">${esc(t.speaker_name)}</span></div>
+        <div class="ix">${claimLabel} · <span class="who">${esc(t.speaker_name)}</span></div>
         <div class="ctxt">${esc(t.text)}</div>
       </div>`);
       return;
@@ -479,6 +502,7 @@ function render(d){
       </div>
     </div>`);
   });
+  out.push(`</div>`);
 
   // highlights
   if(d.highlights && d.highlights.length){
@@ -586,6 +610,7 @@ function render(d){
     window.YVM3D.show({
       scene: d.scene,
       cast: d.cast,
+      apiBase: API_BASE,
       colorFor: id => parseInt(String(colorFor[id]||"#888888").slice(1),16),
       nameFor: id => (d.cast.find(c=>c.character_id===id)||{}).display_name || id,
     });

@@ -12,8 +12,11 @@ Media endpoints (captures/images/videos/package) belong to later phases.
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from youvsmany.adapters.mock_provider import MockProvider
@@ -33,6 +36,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve rendered CosyVoice clips (referenced by scene manifest audio cues) so the
+# browser can stream them; harmless when TTS is mock (the folder stays empty).
+_audio_dir = get_settings().audio_dir
+os.makedirs(_audio_dir, exist_ok=True)
+app.mount("/audio", StaticFiles(directory=_audio_dir), name="audio")
 
 def _store() -> EpisodeStore:
     return EpisodeStore(get_settings().run_dir)
@@ -60,6 +69,7 @@ def _episode_view(ep) -> dict:
                 "display_name": c.display_name,
                 "role": c.role,
                 "stance": c.stance,
+                "visual_presentation": c.visual_presentation,
                 "contention_tag": c.contention_tag,
                 "core_contention": c.core_contention,
             }

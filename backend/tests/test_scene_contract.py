@@ -1,8 +1,10 @@
 from youvsmany.adapters import MockProvider
 from youvsmany.adapters.mock_tts import MockTTS
 from youvsmany.agents import orchestrator
+from youvsmany.agents.stage_director import COSYVOICE_FEMALE, COSYVOICE_MALE
 from youvsmany.contracts.brief import ShowBrief
-from youvsmany.contracts.scene import AnimationTag, VisualPriority
+from youvsmany.contracts.enums import VisualPresentation
+from youvsmany.contracts.scene import AnimationTag
 from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID
 
 
@@ -68,15 +70,21 @@ def test_stage_is_protagonist_plus_challengers_no_moderator():
     assert set(sm.voice_map) == {c.character_id for c in ep.cast.all_speakers()}
 
 
-def test_captions_are_priority_caption_and_unvoiced():
+def test_voice_map_respects_visual_presentation():
+    ep = _run()
+    sm = ep.scene_manifest
+    for char in ep.cast.all_speakers():
+        if char.visual_presentation == VisualPresentation.FEMALE:
+            assert sm.voice_map[char.character_id] == COSYVOICE_FEMALE
+        elif char.visual_presentation == VisualPresentation.MALE:
+            assert sm.voice_map[char.character_id] == COSYVOICE_MALE
+
+
+def test_no_caption_segments_in_room_crossfire():
     ep = _run()
     sm = ep.scene_manifest
     caption_segs = [s for s in sm.segments if s.speaker_id == CAPTION_SPEAKER_ID]
-    assert caption_segs, "expected voted-out caption beats"
-    for s in caption_segs:
-        assert s.visual_priority == VisualPriority.CAPTION
-        assert s.short_candidate is False
-        assert s.animation_tag == AnimationTag.REACTION_MIXED
+    assert caption_segs == []
 
 
 def test_short_candidates_match_highlight_windows():

@@ -4,7 +4,8 @@ BRIEFED -> PREPARING -> OPENING -> CONTENTIONS -> RAPID_REBUTTAL -> CLOSING -> L
 
 The moderator picks the next speaker, sets a per-turn objective, kills
 repetition, caps dominance and forces a disputed question when sides talk past
-each other (blueprint 4.5)."""
+each other. CONTENTIONS now means one shared claim with rotating room pressure,
+not isolated one-on-one segments (blueprint 4.5)."""
 
 from __future__ import annotations
 
@@ -60,58 +61,80 @@ class DebateRunner:
         self._emit(self.cast.protagonist, DebateState.OPENING, self.plan.opening_objective)
 
     def _do_contentions(self) -> None:
-        """One claim segment per challenger, Jubilee 'Surrounded' rhythm:
+        """One shared claim, many challengers in the same room.
 
-        protagonist states the claim -> a one-on-one duel of N passes ->
-        a voted-out caption resets the seat. Duel depth scales to the budget."""
+        The protagonist puts a single claim on the floor. Challengers first enter
+        with distinct pressure angles, then follow up round-robin while the
+        protagonist has to answer the room rather than isolated one-on-one duels.
+        """
         slots = self.plan.contentions
-        passes = director.segment_passes(len(slots), self.plan.target_turns)
-        for seg_index, slot in enumerate(slots):
-            challenger = self.cast.by_id(slot.challenger_id)
-            tag = slot.contention_tag
-            self.memory.covered_contentions.append(tag)
-            ordinal = "first" if seg_index == 0 else "next"
+        if not slots:
+            return
 
-            # 1. The protagonist raises the claim to the room (claim card).
+        challengers = [self.cast.by_id(slot.challenger_id) for slot in slots]
+        for slot in slots:
+            self.memory.covered_contentions.append(slot.contention_tag)
+
+        # 1. One shared claim card for the whole room.
+        self._emit(
+            self.cast.protagonist,
+            DebateState.CONTENTIONS,
+            director.room_claim_objective(self.topic),
+            scene_cue="claim_card",
+            force=True,
+        )
+
+        # 2. Opening pressure wave: every challenger attacks the same claim from
+        # their own angle. Later challengers can build on the previous voice.
+        previous = self.cast.protagonist
+        for index, (slot, challenger) in enumerate(zip(slots, challengers)):
+            if index == 0:
+                objective = director.opening_pressure_objective(slot.contention_tag, self.topic)
+                react_to = self.cast.protagonist
+            else:
+                objective = director.build_pressure_objective(
+                    slot.contention_tag, previous.display_name, self.topic
+                )
+                react_to = previous
+            self._emit(
+                challenger,
+                DebateState.CONTENTIONS,
+                objective,
+                react_to=react_to,
+                greet=index == 0,
+            )
+            previous = challenger
+
+        # 3. The protagonist answers the room before follow-ups begin.
+        self._emit(
+            self.cast.protagonist,
+            DebateState.CONTENTIONS,
+            director.answer_room_objective(self.topic),
+            react_to=previous,
+        )
+
+        # 4. Rotating crossfire on the same claim.
+        pairs = director.crossfire_pairs(len(challengers), self.plan.target_turns)
+        for pair_index in range(pairs):
+            slot = slots[pair_index % len(slots)]
+            challenger = challengers[pair_index % len(challengers)]
+            self._emit(
+                challenger,
+                DebateState.CONTENTIONS,
+                director.follow_up_objective(slot.contention_tag, self.topic),
+                react_to=self.cast.protagonist,
+            )
             self._emit(
                 self.cast.protagonist,
                 DebateState.CONTENTIONS,
-                director.claim_objective(ordinal, tag, self.topic),
+                director.answer_follow_up_objective(slot.contention_tag),
                 react_to=challenger,
-                scene_cue="claim_card",
-                force=True,
-            )
-
-            # 2. The one-on-one duel: challenger presses, protagonist answers.
-            for pass_index in range(passes[seg_index]):
-                first = pass_index == 0
-                if first:
-                    ch_obj = (
-                        f"meet the protagonist, then challenge the claim on {tag} "
-                        f"with one concrete pressure point"
-                    )
-                    pr_obj = f"answer the {tag} objection directly and keep it conversational"
-                else:
-                    ch_obj = (
-                        f"push back on the exact answer about {tag}; raise the heat, no new topic"
-                    )
-                    pr_obj = (
-                        f"reply to the pushback on {tag}; concede only the narrowest fair point"
-                    )
-                self._emit(challenger, DebateState.CONTENTIONS, ch_obj, greet=first)
-                self._emit(self.cast.protagonist, DebateState.CONTENTIONS, pr_obj)
-
-            # 3. The seat resets: a voted-out caption (no spoken host voice).
-            self._emit_caption(
-                DebateState.CONTENTIONS,
-                director.voted_out_caption(challenger.display_name, seg_index),
-                scene_cue="voted_out",
             )
 
     def _do_rapid_rebuttal(self) -> None:
-        # Depth is baked into the claim segments now, so this is a pass-through
-        # state. Kept as a safety net: only fires if a tiny cast somehow landed
-        # under the locked floor, adding one extra duel pass on the last claim.
+        # Depth is baked into crossfire now, so this is a pass-through state.
+        # Kept as a safety net: only fires if a tiny cast somehow landed under
+        # the locked floor, adding one extra exchange on the last pressure angle.
         closing_turns = 2
         needed = MIN_LOCKED_TURNS - len(self.transcript.turns) - closing_turns
         if needed <= 0 or not self.plan.contentions:

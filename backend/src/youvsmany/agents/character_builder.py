@@ -33,8 +33,9 @@ def build_cast(
             "You are the Character Builder. Invent one protagonist and "
             f"{brief.num_challengers} challengers whose objections differ in SUBSTANCE, "
             "not just personality. Each gets a distinct contention_tag. There is no "
-            "moderator — the cast is only the debating voices. Return JSON matching the "
-            "Cast schema {protagonist, challengers[]}."
+            "moderator — the cast is only the debating voices. Set visual_presentation "
+            "for every character to male, female or neutral for voice/model selection. "
+            "Return JSON matching the Cast schema {protagonist, challengers[]}."
         ),
         instruction=(
             f"Topic: {brief.topic!r}. Protagonist argues {brief.protagonist_position.value}. "

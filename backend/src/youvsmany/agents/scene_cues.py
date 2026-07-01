@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from youvsmany.contracts.enums import DebateState, Role
 
-# Reusable cues (blueprint: "six reusable animation states") plus two ritual
-# beats for the Surrounded-style claim/duel rhythm: a claim card the protagonist
-# raises before each duel, and the "voted out" gavel that ends it.
+# Reusable cues (blueprint: "six reusable animation states") plus legacy ritual
+# beats. The current room-crossfire format uses one claim_card for the shared
+# claim; voted_out remains readable for older stored transcripts.
 CUES = (
     "wide_establish",
     "protagonist_close",

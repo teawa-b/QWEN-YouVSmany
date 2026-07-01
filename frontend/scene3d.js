@@ -18,8 +18,8 @@ const CHAR_HEIGHT = 1.7;   // target standing height (m) for scaling the Mixamo 
 const CHAIR_HEIGHT = 0.92; // real-ish chair height (m); seat lands ~0.46
 const BOT_SEAT_Z = -0.12;
 const BOT_SEAT_Y = -0.28;
-const PLATE_W = 0.68;
-const PLATE_H = 0.17;
+const PLATE_W = 0.58;
+const PLATE_H = 0.145;
 
 // Themed studio look per premade set id (matches the manifest's scene_template).
 const THEMES = {
@@ -369,7 +369,7 @@ class StagePlayer {
     const settled = new THREE.Box3().setFromObject(ch.model);
     ch.floorClearance = settled.min.y;
     ch.headY = settled.max.y;
-    ch.plate.position.y = Math.min(1.95, Math.max(1.55, ch.headY + 0.34));
+    ch.plate.position.y = Math.min(2.05, Math.max(1.58, ch.headY + 0.42));
   }
 
   _nameplate(text, color) {
@@ -400,7 +400,7 @@ class StagePlayer {
     switch (seg.camera?.shot) {
       case "protagonist_close":
         // Near-table angle looking at the protagonist's front, clear of the back plate.
-        return { pos: V(0.55, L.headY + 0.75, -0.15), tgt: V(0, L.headY + 0.05, L.seatZ) };
+        return { pos: V(0.45, L.headY + 0.9, -0.85), tgt: V(0, L.headY - 0.1, L.seatZ) };
       case "challenger_close":
         // Across the table onto the speaking challenger's face.
         return { pos: V(cx * 0.5, L.headY + 0.45, 0.4), tgt: V(cx, L.headY - 0.05, -L.seatZ) };

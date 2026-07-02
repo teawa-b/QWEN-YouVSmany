@@ -57,6 +57,12 @@ Local mock playback uses the checked-in WebM clips so the flow can be reviewed
 without spending generation credits. A live HappyHorse call requires public or
 OSS-accessible media URLs; localhost asset URLs are only for the browser mock.
 
+Export the local mock conversation to a vertical WebM:
+
+```bash
+npm run export:mock-video
+```
+
 Dry-run a single live payload:
 
 ```bash

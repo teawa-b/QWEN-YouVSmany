@@ -81,8 +81,9 @@ Sub-tasks:
 - [ ] **HappyHorse video-edit assembly**: per-segment payloads that combine the
       runtime HD character images with source motion clips, then stitch the
       edited segments into the full conversation video. Local mock preview is
-      implemented; live Qwen Cloud generation still needs public media URLs and
-      an API key.
+      implemented, and the mock segment clips can be exported to a vertical
+      WebM. Live Qwen Cloud generation still needs public media URLs and an API
+      key.
 - [ ] Drive the studio-set `.glb` itself (not just procedural/themed floor).
 - [ ] Add visemes / mouth-sync from the master audio (player currently uses
       animation crossfade and talk movement).

@@ -7,7 +7,8 @@
     "start": "node server.js",
     "capture:refs": "node scripts/capture_reference_assets.mjs",
     "generate:realistic-refs": "node scripts/generate_realistic_references.mjs",
-    "generate:happyhorse-video": "node scripts/run_happyhorse_video_edit.mjs"
+    "generate:happyhorse-video": "node scripts/run_happyhorse_video_edit.mjs",
+    "export:mock-video": "node scripts/export_mock_episode_video.mjs"
   },
   "engines": {
     "node": ">=20"

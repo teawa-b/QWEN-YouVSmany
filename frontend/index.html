@@ -210,6 +210,7 @@
     color:var(--text);font:600 12.5px var(--font);padding:8px 10px}
   .hh-btn.primary{color:#0b0d11;background:linear-gradient(180deg,#a9bcff,#7b97ff);border:0}
   .hh-note{color:var(--muted);font-size:12px}
+  .hh-note.warn{color:#f0c76a}
   .hh-flow{display:grid;gap:12px}
   .hh-step{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
   .hh-step h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
@@ -667,6 +668,7 @@ function render(d){
 }
 
 const HH_REF_BASE = "/assets/reference/vertical-v1/";
+const HH_REAL_BASE = "/assets/reference/realistic-v1/";
 const HH_MODEL = "happyhorse-1.0-video-edit";
 const HH_SLOTS = ["second_speaker","third_speaker","fourth_speaker"];
 
@@ -684,7 +686,7 @@ function renderHappyHorseFlow(){
       <div class="hh-flow">
         <div class="hh-step">
           <h3>1. Runtime HD images</h3>
-          <div class="hh-note">Mock view uses the checked-in 9:16 starters. Live mode swaps these for Qwen Image Edit Max 1080*1920 images, then passes up to 5 references into HappyHorse.</div>
+          <div class="hh-note warn" id="hhAssetStatus">Checking Qwen realistic reference bank...</div>
           <div class="hh-refs" id="hhRefs"></div>
         </div>
         <div class="hh-step">
@@ -742,31 +744,52 @@ function happyHorsePrompt(d, s){
     `No captions, no lower thirds, no logos, no watermark, no extra text.`
   ].join(" ");
 }
-function happyHorsePayload(d, s, ref){
+async function loadRealisticBank(){
+  try{
+    const r = await fetch(HH_REAL_BASE + "manifest.json", {cache:"no-store"});
+    if(!r.ok) return null;
+    return await r.json();
+  }catch{ return null; }
+}
+function realisticFor(starterPath, bank){
+  if(!bank || !Array.isArray(bank.shots)) return null;
+  const hit = bank.shots.find(x=>x.starter===starterPath || x.realistic===starterPath);
+  return hit?.realistic || null;
+}
+function referenceUrl(starterPath, bank){
+  const real = realisticFor(starterPath, bank);
+  return location.origin + (real ? HH_REAL_BASE + real : HH_REF_BASE + starterPath);
+}
+function happyHorsePayload(d, s, ref, bank){
   const media = [
     { type:"video", url: location.origin + HH_REF_BASE + ref.clip },
-    { type:"reference_image", url: location.origin + HH_REF_BASE + (ref.identity || ref.starter) },
+    { type:"reference_image", url: referenceUrl(ref.identity || ref.starter, bank) },
   ];
-  if(ref.identity && ref.identity !== ref.starter) media.push({ type:"reference_image", url: location.origin + HH_REF_BASE + ref.starter });
+  if(ref.identity && ref.identity !== ref.starter) media.push({ type:"reference_image", url: referenceUrl(ref.starter, bank) });
   return {
     model: HH_MODEL,
     input: { prompt: happyHorsePrompt(d, s), media: media.slice(0,5) },
     parameters: { resolution:"720P" }
   };
 }
-function buildHappyHorseSegments(d){
+function buildHappyHorseSegments(d, bank){
   return (d.scene?.segments || []).filter(s=>s.speaker_id!=="caption").map((s, i)=>{
     const ref = refForSegment(d, s);
-    return { index:i, segment:s, ref, payload:happyHorsePayload(d, s, ref) };
+    return { index:i, segment:s, ref, payload:happyHorsePayload(d, s, ref, bank) };
   });
 }
-function mountHappyHorseFlow(d, colorFor){
+async function mountHappyHorseFlow(d, colorFor){
   const root = $("#happyHorseFlow");
   if(!root) return;
-  const segments = buildHappyHorseSegments(d);
+  const bank = await loadRealisticBank();
+  const segments = buildHappyHorseSegments(d, bank);
   if(!segments.length) return;
   const video = $("#hhVideo"), overlay = $("#hhOverlay"), payload = $("#hhPayload");
   const nameOf = cid => (d.cast.find(c=>c.character_id===cid)||{}).display_name || cid;
+  $("#hhAssetStatus").textContent = bank
+    ? "Using generated Qwen Image Edit Max realistic references from /assets/reference/realistic-v1."
+    : "No realistic Qwen images found yet. This preview is using the 9:16 starter frames until generate:realistic-refs runs with a Qwen/DashScope key.";
+  $("#hhAssetStatus").classList.toggle("warn", !bank);
   const uniqueRefs = [];
   const seen = new Set();
   for(const item of segments){
@@ -775,9 +798,10 @@ function mountHappyHorseFlow(d, colorFor){
     seen.add(key);
     uniqueRefs.push({ name:nameOf(item.ref.speakerId), path:item.ref.identity || item.ref.starter, group:item.ref.group });
   }
-  $("#hhRefs").innerHTML = uniqueRefs.slice(0,5).map(r=>
-    `<div class="hh-ref"><img src="${HH_REF_BASE + r.path}" alt="${esc(r.name)} reference"><span>${esc(r.name)} · HD image</span></div>`
-  ).join("");
+  $("#hhRefs").innerHTML = uniqueRefs.slice(0,5).map(r=>{
+    const real = realisticFor(r.path, bank);
+    return `<div class="hh-ref"><img src="${(real ? HH_REAL_BASE + real : HH_REF_BASE + r.path)}" alt="${esc(r.name)} reference"><span>${esc(r.name)} · ${real?"Qwen realistic":"starter mock"}</span></div>`;
+  }).join("");
   $("#hhSegments").innerHTML = segments.map((item, i)=>{
     const s = item.segment, col = colorFor[s.speaker_id] || MOD;
     return `<button class="hh-seg" data-i="${i}" style="--c:${col}">

@@ -191,9 +191,19 @@ function findBone(root, names) {
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 class StagePlayer {
-  constructor(host, data) {
+  constructor(host, data, options = {}) {
     this.host = host;
     this.data = data;
+    this.options = {
+      aspectRatio: 16 / 9,
+      captureSize: null,
+      hideControls: false,
+      hideOverlays: false,
+      manualRender: false,
+      pixelRatio: Math.min(window.devicePixelRatio, 2),
+      showCropGuide: true,
+      ...options,
+    };
     this.scene = data.scene;
     this.segments = (this.scene.segments || []).filter((s) => (s.end_s - s.start_s) > 0.01);
     this.cur = -1;
@@ -210,19 +220,26 @@ class StagePlayer {
     this._buildWorld()
       .then(() => { this.ready = true; this._frameWide(); this._setReadyUI(); })
       .catch((e) => this._fail(e));
-    this._loop();
+    if (!this.options.manualRender) this._loop();
   }
 
   _buildDom() {
     this.host.innerHTML = "";
     const cv = document.createElement("div");
     cv.className = "s3d-canvas";
+    if (this.options.manualRender) cv.classList.add("capture");
+    if (this.options.captureSize) {
+      cv.style.width = `${this.options.captureSize.width}px`;
+      cv.style.height = `${this.options.captureSize.height}px`;
+    }
+    cv.style.aspectRatio = `${this.options.aspectRatio}`;
     this.host.appendChild(cv);
     this.canvasHost = cv;
 
     const crop = document.createElement("div");
     crop.className = "s3d-crop";
     crop.title = "9:16 short crop-safe region";
+    if (!this.options.showCropGuide || this.options.hideOverlays) crop.style.display = "none";
     cv.appendChild(crop);
 
     const load = document.createElement("div");
@@ -235,6 +252,7 @@ class StagePlayer {
     lt.className = "s3d-lowerthird";
     lt.innerHTML = `<i class="s3d-lt-bar"></i><span class="s3d-lt-text"><b class="s3d-lt-name"></b><small class="s3d-lt-stance"></small></span>`;
     cv.appendChild(lt);
+    if (this.options.hideOverlays) lt.style.display = "none";
     this.lowerThirdEl = lt;
     this.lowerThirdNameEl = lt.querySelector(".s3d-lt-name");
     this.lowerThirdStanceEl = lt.querySelector(".s3d-lt-stance");
@@ -242,11 +260,13 @@ class StagePlayer {
     const cap = document.createElement("div");
     cap.className = "s3d-caption";
     cv.appendChild(cap);
+    if (this.options.hideOverlays) cap.style.display = "none";
     this.captionEl = cap;
 
     const badge = document.createElement("div");
     badge.className = "s3d-shot";
     cv.appendChild(badge);
+    if (this.options.hideOverlays) badge.style.display = "none";
     this.shotEl = badge;
 
     const bar = document.createElement("div");
@@ -258,6 +278,7 @@ class StagePlayer {
       <span class="s3d-seg">loading…</span>
       <button class="s3d-btn s3d-free" title="Toggle free camera">🎥 Director</button>`;
     this.host.appendChild(bar);
+    if (this.options.hideControls) bar.style.display = "none";
     this.playBtn = bar.querySelector(".s3d-play");
     this.progFill = bar.querySelector(".s3d-progress > i");
     this.segLabel = bar.querySelector(".s3d-seg");
@@ -280,12 +301,11 @@ class StagePlayer {
 
   _initThree() {
     const theme = this.theme = THEMES[this.scene.scene_template?.template_id] || DEFAULT_THEME;
-    const w = this.canvasHost.clientWidth || 640;
-    const h = w * 9 / 16;
+    const { w, h } = this._canvasSize();
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(w, h);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(this.options.pixelRatio);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -481,7 +501,26 @@ class StagePlayer {
     const headY = Number.isFinite(ch?.headY) ? ch.headY : L.headY;
     const frameY = Number.isFinite(ch?.frameY) ? ch.frameY : (L.frameY || headY - CROWN_TO_UPPER_BODY_Y);
     const closeFrameY = Math.max(0.72, headY - CLOSE_UPPER_BODY_DROP_Y);
+    const sideZ = ch?.role === "protagonist" ? L.seatZ : -L.seatZ;
+    const towardTable = sideZ > 0 ? -1 : 1;
+    const vertical = this.options.aspectRatio < 1;
+    const mediumDistance = vertical ? 1.72 : 2.15;
+    const profileSide = vertical ? 1.08 : 1.35;
     switch (seg.camera?.shot) {
+      case "intro_wide":
+        return { pos: V(0, L.headY + 0.55, L.seatZ + 4.4), tgt: V(0, L.frameY, 0) };
+      case "intro_table":
+        return { pos: V(-1.25, L.headY + 0.2, L.seatZ + 2.5), tgt: V(0.15, L.frameY, -0.1) };
+      case "intro_panel":
+        return { pos: V(0, L.headY + 0.28, -L.seatZ - 2.5), tgt: V(0, L.frameY, -L.seatZ) };
+      case "speaker_close":
+        return { pos: V(cx * 0.58 + (sideZ > 0 ? 0.35 : 0), headY + 0.04, sideZ + towardTable * 1.4), tgt: V(cx, closeFrameY, sideZ) };
+      case "speaker_medium":
+        return { pos: V(cx * 0.5 + (sideZ > 0 ? 0.25 : 0), headY + 0.12, sideZ + towardTable * mediumDistance), tgt: V(cx, Math.max(0.74, headY - 0.5), sideZ) };
+      case "speaker_profile":
+        return { pos: V(cx + (cx <= 0 ? -profileSide : profileSide), headY + 0.05, sideZ + towardTable * 0.75), tgt: V(cx, Math.max(0.76, headY - 0.48), sideZ) };
+      case "speaker_over_table":
+        return { pos: V(cx * 0.38, headY + 0.22, -sideZ + towardTable * 0.5), tgt: V(cx, Math.max(0.78, headY - 0.46), sideZ) };
       case "protagonist_close":
         // Waist-up view from the table edge: upper torso fills the frame.
         return { pos: V(0.35, headY + 0.04, L.seatZ - CLOSE_CAMERA_TABLE_OFFSET_Z), tgt: V(0, closeFrameY, L.seatZ) };
@@ -505,6 +544,22 @@ class StagePlayer {
     this.camDesiredTarget = V(0, L.frameY, 0);
     this.camera.position.copy(this.camDesiredPos);
     this.controls.target.copy(this.camDesiredTarget);
+  }
+
+  setReferenceShot({ speakerId, shot, speaking = false } = {}) {
+    if (!this.ready) return;
+    const seg = { speaker_id: speakerId, dialogue: "", camera: { shot } };
+    const cam = this._shot(seg);
+    this.camDesiredPos = cam.pos;
+    this.camDesiredTarget = cam.tgt;
+    this.camera.position.copy(this.camDesiredPos);
+    this.controls.target.copy(this.camDesiredTarget);
+    this.activeId = speaking ? speakerId : null;
+    this.playing = Boolean(speaking);
+    this.shotEl.textContent = String(shot || "").replace("_", " ");
+    if (!this.options.hideOverlays && speakerId) this._setLowerThird(speakerId);
+    else this._setLowerThird(null);
+    this.renderReferenceFrame(1 / 30);
   }
 
   // ---------- playback ----------
@@ -687,7 +742,10 @@ class StagePlayer {
     if (this.disposed) return;
     this._raf = requestAnimationFrame(() => this._loop());
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    this.renderReferenceFrame(dt);
+  }
 
+  renderReferenceFrame(dt = 1 / 30) {
     if (this.director) {
       const k = 1 - Math.pow(0.0016, dt);
       this.camera.position.lerp(this.camDesiredPos, k);
@@ -708,9 +766,20 @@ class StagePlayer {
     this.renderer.render(this.scene3, this.camera);
   }
 
-  _resize() {
+  _canvasSize() {
+    if (this.options.captureSize) {
+      return {
+        w: this.options.captureSize.width,
+        h: this.options.captureSize.height,
+      };
+    }
     const w = this.canvasHost.clientWidth || 640;
-    const h = w * 9 / 16;
+    const h = Math.round(w / this.options.aspectRatio);
+    return { w, h };
+  }
+
+  _resize() {
+    const { w, h } = this._canvasSize();
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
@@ -730,11 +799,12 @@ function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 let current = null;
 window.YVM3D = {
-  show(data) {
+  show(data, options = {}) {
     const host = document.getElementById("stage3d");
     if (!host) return;
     if (current) current.dispose();
-    current = new StagePlayer(host, data);
+    current = new StagePlayer(host, data, options);
     window.__YVM3D_DEBUG = current;
+    return current;
   },
 };

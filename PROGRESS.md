@@ -70,6 +70,11 @@ Sub-tasks:
       inflating the target), and close shots now frame the visible upper body.
 - [x] **Backend tests**: 30 tests passing for state machine, scene contract,
       voice mapping, determinism, schemas, safety and metrics.
+- [x] **9:16 reference asset bank**: starter images and silent speaking-angle
+      clips for intro, main speaker, second speaker, third speaker and fourth
+      speaker slots, so image/video guided generation can keep characters
+      consistent from scene to scene. Current bank lives at
+      `frontend/assets/reference/vertical-v1/` with 19 PNG/WebM references.
 - [ ] Drive the studio-set `.glb` itself (not just procedural/themed floor).
 - [ ] Add visemes / mouth-sync from the master audio (player currently uses
       animation crossfade and talk movement).

@@ -42,3 +42,29 @@ Generate with Qwen Cloud:
 ```bash
 QWEN_API_KEY=sk-... npm run generate:realistic-refs
 ```
+
+## HappyHorse video edit
+
+The app's episode page builds a HappyHorse-style payload per conversation
+segment:
+
+- source video: the matching 9:16 speaker motion clip
+- reference images: speaker identity and angle references
+- model: `happyhorse-1.0-video-edit`
+- output target: vertical `9:16`, `720P`/`1080P`
+
+Local mock playback uses the checked-in WebM clips so the flow can be reviewed
+without spending generation credits. A live HappyHorse call requires public or
+OSS-accessible media URLs; localhost asset URLs are only for the browser mock.
+
+Dry-run a single live payload:
+
+```bash
+npm run generate:happyhorse-video -- --dry-run --video-url=https://example.com/source.mp4 --reference-image=https://example.com/speaker.png
+```
+
+Submit a real task:
+
+```bash
+QWEN_API_KEY=sk-... npm run generate:happyhorse-video -- --video-url=https://example.com/source.mp4 --reference-image=https://example.com/speaker.png --out=output/happyhorse/segment.mp4
+```

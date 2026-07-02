@@ -78,6 +78,11 @@ Sub-tasks:
 - [ ] **Realistic character reference bank**: Qwen Image Edit Max pass that
       converts the 9:16 starter frames into photorealistic debate-show images
       while preserving speaker identity across all angles.
+- [ ] **HappyHorse video-edit assembly**: per-segment payloads that combine the
+      runtime HD character images with source motion clips, then stitch the
+      edited segments into the full conversation video. Local mock preview is
+      implemented; live Qwen Cloud generation still needs public media URLs and
+      an API key.
 - [ ] Drive the studio-set `.glb` itself (not just procedural/themed floor).
 - [ ] Add visemes / mouth-sync from the master audio (player currently uses
       animation crossfade and talk movement).

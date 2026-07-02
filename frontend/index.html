@@ -198,6 +198,35 @@
   .bdg.short{color:var(--ok);background:rgba(94,196,140,.1);border:1px solid rgba(94,196,140,.4)}
   .bdg.cap{color:var(--warn);background:rgba(239,191,79,.08);border:1px dashed rgba(239,191,79,.45)}
 
+  /* Phase 3 - HappyHorse video edit flow */
+  .hh{display:grid;grid-template-columns:minmax(250px,360px) 1fr;gap:18px;align-items:start;margin:8px 0 22px}
+  .hh-screen{position:sticky;top:12px;background:#07090d;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+  .hh-screen video{display:block;width:100%;aspect-ratio:9/16;background:#05070a;object-fit:cover}
+  .hh-overlay{position:absolute;left:10px;right:10px;bottom:58px;padding:9px 11px;border-radius:8px;
+    background:rgba(7,9,13,.74);border:1px solid rgba(255,255,255,.12);font-size:12.5px;line-height:1.35;pointer-events:none}
+  .hh-overlay b{color:#fff}
+  .hh-controls{display:flex;align-items:center;gap:8px;padding:10px;background:var(--panel-2);border-top:1px solid var(--border)}
+  .hh-btn{appearance:none;cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);
+    color:var(--text);font:600 12.5px var(--font);padding:8px 10px}
+  .hh-btn.primary{color:#0b0d11;background:linear-gradient(180deg,#a9bcff,#7b97ff);border:0}
+  .hh-note{color:var(--muted);font-size:12px}
+  .hh-flow{display:grid;gap:12px}
+  .hh-step{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
+  .hh-step h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
+  .hh-refs{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:9px}
+  .hh-ref{background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .hh-ref img{display:block;width:100%;aspect-ratio:9/16;object-fit:cover;background:#07090d}
+  .hh-ref span{display:block;padding:6px 7px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hh-segments{max-height:280px;overflow:auto;display:grid;gap:6px;padding-right:4px}
+  .hh-seg{display:grid;grid-template-columns:76px minmax(70px,1fr) 82px;gap:8px;align-items:center;
+    width:100%;text-align:left;background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;
+    color:var(--muted);padding:7px 9px;font:12px var(--font);cursor:pointer}
+  .hh-seg.on{border-color:var(--accent-bd);background:var(--accent-soft);color:var(--text)}
+  .hh-seg b{color:var(--c,var(--text));font-size:12px}
+  .hh-payload{margin:0;max-height:220px;overflow:auto;background:#090c12;border:1px solid var(--border);
+    border-radius:8px;padding:10px;color:#b9c4d8;font:11.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}
+  @media (max-width:800px){.hh{grid-template-columns:1fr}.hh-screen{position:relative;top:auto;max-width:360px}}
+
   /* Phase 2 — 3D stage player */
   .stage3d{margin:6px 0 14px}
   .s3d-canvas{position:relative;width:100%;aspect-ratio:16/9;background:#0a0c10;border:1px solid var(--border);
@@ -603,6 +632,8 @@ function render(d){
         <div class="badges">${badges}</div>
       </div>`);
     });
+
+    out.push(renderHappyHorseFlow(d, colorFor));
   }
 
   // run report
@@ -630,8 +661,171 @@ function render(d){
       nameFor: id => (d.cast.find(c=>c.character_id===id)||{}).display_name || id,
     });
   }
+  if(d.scene) mountHappyHorseFlow(d, colorFor);
 
   R.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+const HH_REF_BASE = "/assets/reference/vertical-v1/";
+const HH_MODEL = "happyhorse-1.0-video-edit";
+const HH_SLOTS = ["second_speaker","third_speaker","fourth_speaker"];
+
+function renderHappyHorseFlow(){
+  return `<h2 class="sec">HappyHorse video edit flow</h2>
+    <div class="hh" id="happyHorseFlow">
+      <div class="hh-screen">
+        <video id="hhVideo" muted playsinline controls></video>
+        <div class="hh-overlay" id="hhOverlay"><b>Runtime video flow</b><br>Run the mock video conversation to preview the HappyHorse edit sequence.</div>
+        <div class="hh-controls">
+          <button class="hh-btn primary" id="hhPlay">Play mock video conversation</button>
+          <button class="hh-btn" id="hhRestart">Restart</button>
+        </div>
+      </div>
+      <div class="hh-flow">
+        <div class="hh-step">
+          <h3>1. Runtime HD images</h3>
+          <div class="hh-note">Mock view uses the checked-in 9:16 starters. Live mode swaps these for Qwen Image Edit Max 1080*1920 images, then passes up to 5 references into HappyHorse.</div>
+          <div class="hh-refs" id="hhRefs"></div>
+        </div>
+        <div class="hh-step">
+          <h3>2. HappyHorse edit payload</h3>
+          <pre class="hh-payload" id="hhPayload">{}</pre>
+        </div>
+        <div class="hh-step">
+          <h3>3. Full conversation video segments</h3>
+          <div class="hh-segments" id="hhSegments"></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function speakerSlot(d, cid){
+  const c = d.cast.find(x=>x.character_id===cid);
+  if(!c || c.role==="protagonist") return "main_speaker";
+  const challengers = d.cast.filter(x=>x.role!=="protagonist");
+  return HH_SLOTS[challengers.findIndex(x=>x.character_id===cid)] || "fourth_speaker";
+}
+function refSpeakerId(d, cid){
+  const c = d.cast.find(x=>x.character_id===cid);
+  if(!c || c.role==="protagonist") return "protagonist";
+  const challengers = d.cast.filter(x=>x.role!=="protagonist");
+  const ix = challengers.findIndex(x=>x.character_id===cid);
+  return ix <= 0 ? "challenger_1" : ix === 1 ? "challenger_2" : "challenger_3";
+}
+function refForSegment(d, s){
+  if(s.speaker_id==="caption") return { group:"intro", speakerId:"protagonist", angle:"intro_wide", starter:"intro/protagonist/intro_wide/starter.png", clip:"intro/protagonist/intro_wide/clip.webm" };
+  const slot = speakerSlot(d, s.speaker_id);
+  const assetSpeaker = refSpeakerId(d, s.speaker_id);
+  const shot = s.camera?.shot || "";
+  const angle = shot.includes("close") ? "close"
+    : shot==="two_shot" ? "over_table"
+    : shot==="reaction" ? "medium"
+    : shot==="wide_master" ? "medium"
+    : "medium";
+  return {
+    group: slot,
+    speakerId: s.speaker_id,
+    assetSpeaker,
+    angle,
+    starter: `${slot}/${assetSpeaker}/${angle}/starter.png`,
+    identity: `${slot}/${assetSpeaker}/close/starter.png`,
+    clip: `${slot}/${assetSpeaker}/${angle}/clip.webm`,
+  };
+}
+function happyHorsePrompt(d, s){
+  const who = (d.cast.find(c=>c.character_id===s.speaker_id)||{}).display_name || "the debate speaker";
+  const shot = String(s.camera?.shot || "speaker shot").replace(/_/g," ");
+  return [
+    `Transform this 9:16 debate-stage source clip into a realistic live-action ${shot}.`,
+    `Use the reference image to preserve ${who}'s identity, outfit, seat position and body orientation.`,
+    `Keep the original camera motion, table layout, speaking gestures and timing from the source video.`,
+    `No captions, no lower thirds, no logos, no watermark, no extra text.`
+  ].join(" ");
+}
+function happyHorsePayload(d, s, ref){
+  const media = [
+    { type:"video", url: location.origin + HH_REF_BASE + ref.clip },
+    { type:"reference_image", url: location.origin + HH_REF_BASE + (ref.identity || ref.starter) },
+  ];
+  if(ref.identity && ref.identity !== ref.starter) media.push({ type:"reference_image", url: location.origin + HH_REF_BASE + ref.starter });
+  return {
+    model: HH_MODEL,
+    input: { prompt: happyHorsePrompt(d, s), media: media.slice(0,5) },
+    parameters: { resolution:"720P" }
+  };
+}
+function buildHappyHorseSegments(d){
+  return (d.scene?.segments || []).filter(s=>s.speaker_id!=="caption").map((s, i)=>{
+    const ref = refForSegment(d, s);
+    return { index:i, segment:s, ref, payload:happyHorsePayload(d, s, ref) };
+  });
+}
+function mountHappyHorseFlow(d, colorFor){
+  const root = $("#happyHorseFlow");
+  if(!root) return;
+  const segments = buildHappyHorseSegments(d);
+  if(!segments.length) return;
+  const video = $("#hhVideo"), overlay = $("#hhOverlay"), payload = $("#hhPayload");
+  const nameOf = cid => (d.cast.find(c=>c.character_id===cid)||{}).display_name || cid;
+  const uniqueRefs = [];
+  const seen = new Set();
+  for(const item of segments){
+    const key = `${item.ref.group}/${item.ref.speakerId}/close`;
+    if(seen.has(key)) continue;
+    seen.add(key);
+    uniqueRefs.push({ name:nameOf(item.ref.speakerId), path:item.ref.identity || item.ref.starter, group:item.ref.group });
+  }
+  $("#hhRefs").innerHTML = uniqueRefs.slice(0,5).map(r=>
+    `<div class="hh-ref"><img src="${HH_REF_BASE + r.path}" alt="${esc(r.name)} reference"><span>${esc(r.name)} · HD image</span></div>`
+  ).join("");
+  $("#hhSegments").innerHTML = segments.map((item, i)=>{
+    const s = item.segment, col = colorFor[s.speaker_id] || MOD;
+    return `<button class="hh-seg" data-i="${i}" style="--c:${col}">
+      <span>${esc(s.segment_id)}</span><b>${esc(nameOf(s.speaker_id))}</b><span>${esc(item.ref.angle)}</span>
+    </button>`;
+  }).join("");
+
+  let current = 0, autoplay = false, advanceTimer = null;
+  function select(i, play=false){
+    if(advanceTimer) clearTimeout(advanceTimer);
+    current = Math.max(0, Math.min(i, segments.length-1));
+    const item = segments[current], s = item.segment;
+    document.querySelectorAll(".hh-seg").forEach((b, ix)=>b.classList.toggle("on", ix===current));
+    video.src = HH_REF_BASE + item.ref.clip;
+    overlay.innerHTML = `<b>${esc(nameOf(s.speaker_id))}</b> · ${esc(item.ref.angle)} · ${esc(s.camera?.shot || "")}<br>${esc(s.dialogue)}`;
+    payload.textContent = JSON.stringify(item.payload, null, 2);
+    if(play){
+      const start = ()=>video.play().catch(()=>{});
+      if(video.readyState >= 2) start();
+      else video.onloadeddata = start;
+      advanceTimer = setTimeout(()=>{
+        if(autoplay && current < segments.length-1) select(current+1, true);
+        else {
+          autoplay = false;
+          $("#hhPlay").textContent = "Replay mock video conversation";
+        }
+      }, 2300);
+    }
+  }
+  document.querySelectorAll(".hh-seg").forEach(btn=>btn.onclick=()=>select(parseInt(btn.dataset.i,10), true));
+  $("#hhPlay").onclick = ()=>{
+    autoplay = true;
+    $("#hhPlay").textContent = "Playing mock video conversation";
+    select(current, true);
+  };
+  $("#hhRestart").onclick = ()=>{
+    autoplay = false;
+    $("#hhPlay").textContent = "Play mock video conversation";
+    select(0, false);
+  };
+  video.onended = ()=>{
+    if(autoplay && current < segments.length-1) select(current+1, true);
+    else {
+      autoplay = false;
+      $("#hhPlay").textContent = current >= segments.length-1 ? "Replay mock video conversation" : "Play mock video conversation";
+    }
+  };
+  select(0, false);
 }
 
 const WEIGHTS={hook:.25,conflict:.20,clarity:.15,novelty:.15,emotion:.10,self_containment:.10,visual_potential:.05};

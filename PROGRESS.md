@@ -78,6 +78,8 @@ Sub-tasks:
 - [ ] **Realistic character reference bank**: Qwen Image Edit Max pass that
       converts the 9:16 starter frames into photorealistic debate-show images
       while preserving speaker identity across all angles.
+      Backend media endpoints now exist so Railway can generate this bank with
+      its server-side Qwen key.
 - [ ] **HappyHorse video-edit assembly**: per-segment payloads that combine the
       runtime HD character images with source motion clips, then stitch the
       edited segments into the full conversation video. Local mock preview is

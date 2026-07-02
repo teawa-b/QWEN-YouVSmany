@@ -209,8 +209,10 @@
   .hh-btn{appearance:none;cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);
     color:var(--text);font:600 12.5px var(--font);padding:8px 10px}
   .hh-btn.primary{color:#0b0d11;background:linear-gradient(180deg,#a9bcff,#7b97ff);border:0}
+  .hh-btn:disabled{opacity:.55;cursor:default}
   .hh-note{color:var(--muted);font-size:12px}
   .hh-note.warn{color:#f0c76a}
+  .hh-action{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:9px 0 10px}
   .hh-flow{display:grid;gap:12px}
   .hh-step{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
   .hh-step h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
@@ -687,6 +689,10 @@ function renderHappyHorseFlow(){
         <div class="hh-step">
           <h3>1. Runtime HD images</h3>
           <div class="hh-note warn" id="hhAssetStatus">Checking Qwen realistic reference bank...</div>
+          <div class="hh-action">
+            <button class="hh-btn" id="hhGenerateRefs" hidden>Generate realistic refs on backend</button>
+            <span class="hh-note" id="hhJobStatus"></span>
+          </div>
           <div class="hh-refs" id="hhRefs"></div>
         </div>
         <div class="hh-step">
@@ -745,20 +751,47 @@ function happyHorsePrompt(d, s){
   ].join(" ");
 }
 async function loadRealisticBank(){
+  const sources = [
+    { label:"frontend", manifest:HH_REAL_BASE + "manifest.json", filesBase:HH_REAL_BASE },
+  ];
+  if(API_BASE) sources.push({
+    label:"backend",
+    manifest:api("/media/realistic-refs/manifest.json"),
+    filesBase:api("/media/realistic-refs/files/"),
+  });
+  for(const source of sources){
+    try{
+      const r = await fetch(source.manifest, {cache:"no-store"});
+      if(!r.ok) continue;
+      const manifest = await r.json();
+      if(manifest?.dry_run) continue;
+      return { ...source, manifest };
+    }catch{}
+  }
+  return null;
+}
+async function loadRealisticStatus(){
+  if(!API_BASE) return null;
   try{
-    const r = await fetch(HH_REAL_BASE + "manifest.json", {cache:"no-store"});
+    const r = await fetch(api("/media/realistic-refs/status"), {cache:"no-store"});
     if(!r.ok) return null;
     return await r.json();
   }catch{ return null; }
 }
 function realisticFor(starterPath, bank){
-  if(!bank || !Array.isArray(bank.shots)) return null;
-  const hit = bank.shots.find(x=>x.starter===starterPath || x.realistic===starterPath);
+  const shots = bank?.manifest?.shots || [];
+  if(!Array.isArray(shots)) return null;
+  const hit = shots.find(x=>x.starter===starterPath || x.realistic===starterPath);
   return hit?.realistic || null;
+}
+function joinMediaUrl(base, rel){
+  const absoluteBase = /^https?:\/\//.test(base) ? base : location.origin + base;
+  return new URL(rel, absoluteBase).href;
 }
 function referenceUrl(starterPath, bank){
   const real = realisticFor(starterPath, bank);
-  return location.origin + (real ? HH_REAL_BASE + real : HH_REF_BASE + starterPath);
+  if(real && bank) return joinMediaUrl(bank.filesBase, real);
+  return location.origin + HH_REF_BASE + starterPath;
 }
 function happyHorsePayload(d, s, ref, bank){
   const media = [
@@ -782,14 +815,41 @@ async function mountHappyHorseFlow(d, colorFor){
   const root = $("#happyHorseFlow");
   if(!root) return;
   const bank = await loadRealisticBank();
+  const backendStatus = bank ? null : await loadRealisticStatus();
   const segments = buildHappyHorseSegments(d, bank);
   if(!segments.length) return;
   const video = $("#hhVideo"), overlay = $("#hhOverlay"), payload = $("#hhPayload");
   const nameOf = cid => (d.cast.find(c=>c.character_id===cid)||{}).display_name || cid;
-  $("#hhAssetStatus").textContent = bank
-    ? "Using generated Qwen Image Edit Max realistic references from /assets/reference/realistic-v1."
-    : "No realistic Qwen images found yet. This preview is using the 9:16 starter frames until generate:realistic-refs runs with a Qwen/DashScope key.";
+  const assetStatus = $("#hhAssetStatus");
+  const generateBtn = $("#hhGenerateRefs");
+  const jobStatus = $("#hhJobStatus");
+  assetStatus.textContent = bank
+    ? `Using generated Qwen Image Edit Max realistic references from ${bank.label}.`
+    : backendStatus?.qwen_ready
+      ? "No realistic Qwen images found yet, but the backend has Qwen ready and can generate them now."
+      : "No realistic Qwen images found yet. This preview is using starter frames until the backend realistic-ref endpoint runs with a Qwen/DashScope key.";
   $("#hhAssetStatus").classList.toggle("warn", !bank);
+  if(generateBtn){
+    generateBtn.hidden = Boolean(bank) || !backendStatus?.qwen_ready;
+    generateBtn.onclick = async ()=>{
+      generateBtn.disabled = true;
+      jobStatus.textContent = "Starting backend generation...";
+      try{
+        const r = await fetch(api("/media/realistic-refs/generate"), {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({background:true, overwrite:false, limit:0})
+        });
+        const started = await r.json();
+        if(!r.ok) throw new Error(started.detail || `Request failed (${r.status})`);
+        await pollRealisticJob(started.job.job_id, jobStatus);
+        await mountHappyHorseFlow(d, colorFor);
+      }catch(e){
+        jobStatus.textContent = "Generation failed: " + e.message;
+        generateBtn.disabled = false;
+      }
+    };
+  }
   const uniqueRefs = [];
   const seen = new Set();
   for(const item of segments){
@@ -850,6 +910,23 @@ async function mountHappyHorseFlow(d, colorFor){
     }
   };
   select(0, false);
+}
+async function pollRealisticJob(jobId, statusEl){
+  for(let i=0;i<240;i++){
+    await new Promise(r=>setTimeout(r, 5000));
+    const r = await fetch(api(`/media/realistic-refs/jobs/${jobId}`), {cache:"no-store"});
+    const job = await r.json();
+    if(!r.ok) throw new Error(job.detail || `Job status failed (${r.status})`);
+    statusEl.textContent = job.total
+      ? `Generating ${job.current}/${job.total}: ${job.path || ""}`
+      : `Generation ${job.status}`;
+    if(job.status==="succeeded"){
+      statusEl.textContent = "Realistic refs generated. Reloading references...";
+      return job;
+    }
+    if(job.status==="failed") throw new Error(job.error || "backend job failed");
+  }
+  throw new Error("backend job timed out");
 }
 
 const WEIGHTS={hook:.25,conflict:.20,clarity:.15,novelty:.15,emotion:.10,self_containment:.10,visual_potential:.05};

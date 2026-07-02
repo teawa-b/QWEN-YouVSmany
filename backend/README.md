@@ -24,9 +24,18 @@ pytest -q
 - `GET /health`
 - `POST /episodes/run`
 - `GET /episodes/{episode_id}/full`
+- `GET /media/realistic-refs/status`
+- `POST /media/realistic-refs/generate`
+- `GET /media/realistic-refs/jobs/{job_id}`
+- `GET /media/realistic-refs/manifest.json`
 
 The web API is currently pinned to the deterministic mock provider while the UI
 is being refined.
+
+The media endpoints let the hosted backend use its Qwen/DashScope key to
+generate the `qwen-image-edit-max` realistic 9:16 reference bank. Generated
+files are served from `/media/realistic-refs/files/` so the frontend can pass
+public backend URLs into HappyHorse without exposing secrets.
 
 ## Railway
 

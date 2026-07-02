@@ -12,13 +12,15 @@ Media endpoints (captures/images/videos/package) belong to later phases.
 
 from __future__ import annotations
 
+import asyncio
 import os
 from importlib.util import find_spec
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from youvsmany.adapters.mock_provider import MockProvider
 from youvsmany.adapters.factory import effective_tts_provider
@@ -27,6 +29,7 @@ from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
 from youvsmany.contracts.brief import ShowBrief
 from youvsmany.evals.metrics import score_episode
+from youvsmany.media import reference_assets
 from youvsmany.store import EpisodeStore
 
 app = FastAPI(title="You Vs Many — Debate Intelligence", version="0.1.0")
@@ -44,6 +47,14 @@ app.add_middleware(
 _audio_dir = get_settings().audio_dir
 os.makedirs(_audio_dir, exist_ok=True)
 app.mount("/audio", StaticFiles(directory=_audio_dir), name="audio")
+
+_realistic_ref_dir = get_settings().realistic_ref_dir
+os.makedirs(_realistic_ref_dir, exist_ok=True)
+app.mount(
+    "/media/realistic-refs/files",
+    StaticFiles(directory=_realistic_ref_dir),
+    name="realistic-refs",
+)
 
 def _store() -> EpisodeStore:
     return EpisodeStore(get_settings().run_dir)
@@ -95,6 +106,15 @@ class RunBody(BaseModel):
     suggested_tags: list[str] | None = None
 
 
+class RealisticRefsGenerateBody(BaseModel):
+    dry_run: bool = False
+    limit: int = Field(default=0, ge=0, description="0 generates the whole bank")
+    overwrite: bool = False
+    delay_ms: int = Field(default=33000, ge=0, le=120000)
+    background: bool = True
+    size: str = "1080*1920"
+
+
 @app.get("/")
 def index() -> dict:
     return {"status": "ok", "service": "youvsmany-api", "docs": "/docs", "health": "/health"}
@@ -118,7 +138,67 @@ def health() -> dict:
         "tts_configured": settings.tts_provider,
         "tts_model": settings.qwen_tts_model if tts_provider == "qwen" else "mock-tts-1",
         "tts_ready": tts_ready,
+        "media_endpoints": True,
+        "image_model": settings.qwen_image_edit_model,
+        "image_ready": bool(settings.qwen_dashscope_api_key),
     }
+
+
+@app.get("/media/realistic-refs/status")
+def realistic_refs_status() -> dict:
+    try:
+        return reference_assets.status(get_settings())
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"reference source missing: {exc}") from exc
+
+
+@app.get("/media/realistic-refs/manifest.json")
+def realistic_refs_manifest():
+    file = reference_assets.manifest_path(get_settings())
+    if not file.exists():
+        raise HTTPException(status_code=404, detail="realistic reference manifest not generated")
+    return FileResponse(file, media_type="application/json")
+
+
+@app.post("/media/realistic-refs/generate")
+async def generate_realistic_refs(body: RealisticRefsGenerateBody) -> dict:
+    settings = get_settings()
+    if not body.dry_run and not settings.qwen_dashscope_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Qwen/DashScope key is not configured on this backend",
+        )
+
+    kwargs = {
+        "dry_run": body.dry_run,
+        "limit": body.limit,
+        "overwrite": body.overwrite,
+        "delay_ms": body.delay_ms,
+        "size": body.size,
+    }
+    if body.background:
+        job = reference_assets.create_job()
+        asyncio.create_task(reference_assets.run_job(job["job_id"], settings, **kwargs))
+        return {"status": "queued", "job": job}
+
+    try:
+        manifest = await reference_assets.generate(settings, **kwargs)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return {
+        "status": "succeeded",
+        "shots": len(manifest.get("shots", [])),
+        "manifest_url": "/media/realistic-refs/manifest.json",
+        "files_url": "/media/realistic-refs/files/",
+    }
+
+
+@app.get("/media/realistic-refs/jobs/{job_id}")
+def realistic_refs_job(job_id: str) -> dict:
+    job = reference_assets.JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    return job
 
 
 @app.post("/episodes/run")

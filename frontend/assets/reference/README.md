@@ -43,6 +43,19 @@ Generate with Qwen Cloud:
 QWEN_API_KEY=sk-... npm run generate:realistic-refs
 ```
 
+Or generate through the hosted backend, which keeps the Qwen key server-side:
+
+```bash
+curl -X POST https://your-backend-domain.up.railway.app/media/realistic-refs/generate \
+  -H "Content-Type: application/json" \
+  -d '{"background":true}'
+```
+
+Poll the returned `job.job_id` at
+`/media/realistic-refs/jobs/{job_id}`. The generated manifest is served from
+`/media/realistic-refs/manifest.json`, and images are served from
+`/media/realistic-refs/files/`.
+
 ## HappyHorse video edit
 
 The app's episode page builds a HappyHorse-style payload per conversation

@@ -75,6 +75,9 @@ Sub-tasks:
       speaker slots, so image/video guided generation can keep characters
       consistent from scene to scene. Current bank lives at
       `frontend/assets/reference/vertical-v1/` with 19 PNG/WebM references.
+- [ ] **Realistic character reference bank**: Qwen Image Edit Max pass that
+      converts the 9:16 starter frames into photorealistic debate-show images
+      while preserving speaker identity across all angles.
 - [ ] Drive the studio-set `.glb` itself (not just procedural/themed floor).
 - [ ] Add visemes / mouth-sync from the master audio (player currently uses
       animation crossfade and talk movement).

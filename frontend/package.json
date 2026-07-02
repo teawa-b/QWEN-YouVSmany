@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "capture:refs": "node scripts/capture_reference_assets.mjs"
+    "capture:refs": "node scripts/capture_reference_assets.mjs",
+    "generate:realistic-refs": "node scripts/generate_realistic_references.mjs"
   },
   "engines": {
     "node": ">=20"

@@ -815,7 +815,7 @@ async function mountHappyHorseFlow(d, colorFor){
   const root = $("#happyHorseFlow");
   if(!root) return;
   const bank = await loadRealisticBank();
-  const backendStatus = bank ? null : await loadRealisticStatus();
+  const backendStatus = await loadRealisticStatus();
   const segments = buildHappyHorseSegments(d, bank);
   if(!segments.length) return;
   const video = $("#hhVideo"), overlay = $("#hhOverlay"), payload = $("#hhPayload");
@@ -823,14 +823,17 @@ async function mountHappyHorseFlow(d, colorFor){
   const assetStatus = $("#hhAssetStatus");
   const generateBtn = $("#hhGenerateRefs");
   const jobStatus = $("#hhJobStatus");
+  const incomplete = Boolean(backendStatus) && backendStatus.generated_count < backendStatus.source_count;
   assetStatus.textContent = bank
-    ? `Using generated Qwen Image Edit Max realistic references from ${bank.label}.`
+    ? `Using generated Qwen Image Edit Max realistic references from ${bank.label}${bank.label==="backend" && incomplete ? ` (${backendStatus.generated_count}/${backendStatus.source_count} shots so far)` : ""}.`
     : backendStatus?.qwen_ready
       ? "No realistic Qwen images found yet, but the backend has Qwen ready and can generate them now."
       : "No realistic Qwen images found yet. This preview is using starter frames until the backend realistic-ref endpoint runs with a Qwen/DashScope key.";
   $("#hhAssetStatus").classList.toggle("warn", !bank);
   if(generateBtn){
-    generateBtn.hidden = Boolean(bank) || !backendStatus?.qwen_ready;
+    generateBtn.hidden = !backendStatus?.qwen_ready || (Boolean(bank) && !(bank.label==="backend" && incomplete));
+    generateBtn.textContent = bank && incomplete ? "Generate missing realistic refs" : "Generate realistic refs on backend";
+    generateBtn.disabled = false;
     generateBtn.onclick = async ()=>{
       generateBtn.disabled = true;
       jobStatus.textContent = "Starting backend generation...";
@@ -860,7 +863,8 @@ async function mountHappyHorseFlow(d, colorFor){
   }
   $("#hhRefs").innerHTML = uniqueRefs.slice(0,5).map(r=>{
     const real = realisticFor(r.path, bank);
-    return `<div class="hh-ref"><img src="${(real ? HH_REAL_BASE + real : HH_REF_BASE + r.path)}" alt="${esc(r.name)} reference"><span>${esc(r.name)} · ${real?"Qwen realistic":"starter mock"}</span></div>`;
+    const src = real ? joinMediaUrl(bank.filesBase, real) : HH_REF_BASE + r.path;
+    return `<div class="hh-ref"><img src="${src}" alt="${esc(r.name)} reference"><span>${esc(r.name)} · ${real?"Qwen realistic":"starter mock"}</span></div>`;
   }).join("");
   $("#hhSegments").innerHTML = segments.map((item, i)=>{
     const s = item.segment, col = colorFor[s.speaker_id] || MOD;
@@ -918,10 +922,14 @@ async function pollRealisticJob(jobId, statusEl){
     const job = await r.json();
     if(!r.ok) throw new Error(job.detail || `Job status failed (${r.status})`);
     statusEl.textContent = job.total
-      ? `Generating ${job.current}/${job.total}: ${job.path || ""}`
+      ? `Generating ${job.current}/${job.total}${job.failed ? ` (${job.failed} failed)` : ""}: ${job.path || ""}`
       : `Generation ${job.status}`;
     if(job.status==="succeeded"){
       statusEl.textContent = "Realistic refs generated. Reloading references...";
+      return job;
+    }
+    if(job.status==="partial"){
+      statusEl.textContent = `Generated with ${job.failed || "some"} failed shots — using the partial bank. Re-run to retry only the missing ones.`;
       return job;
     }
     if(job.status==="failed") throw new Error(job.error || "backend job failed");

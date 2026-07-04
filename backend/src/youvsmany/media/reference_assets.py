@@ -3,6 +3,22 @@
 The frontend owns the starter reference bank. The backend owns secret-bearing
 calls to Qwen Cloud and writes generated realistic images into a served media
 directory so browsers can use them without seeing API keys.
+
+Generation strategy:
+- Intro and per-speaker ``close`` shots are generated first. The close shot is
+  the identity anchor: once its realistic image exists, every other angle for
+  that speaker uses the *generated* close image as the identity reference,
+  which keeps the character consistent from a real photo instead of the
+  stylized starter frame.
+- Each shot is generated independently: one moderation rejection or transient
+  error records a failed shot and moves on instead of killing the whole job.
+- The manifest is rewritten after every shot, so partial banks are usable
+  immediately and a re-run (overwrite=False) only fills in what is missing.
+
+DashScope moderation (``DataInspectionFailed``) scans prompt text too, so
+prompts avoid known false-positive terms (skin/limbs/body-part words) and
+``prompt_extend`` stays off — the server-side rewritten prompt is re-inspected
+and turns deterministic prompts into coin flips.
 """
 
 from __future__ import annotations
@@ -11,6 +27,7 @@ import asyncio
 import base64
 import json
 import os
+import random
 import time
 import uuid
 from pathlib import Path
@@ -27,8 +44,8 @@ SPEAKER_PROFILES: dict[str, dict[str, Any]] = {
         "label": "Main Speaker",
         "seed": 411001,
         "description": (
-            "confident male-presenting debate contestant, early 30s, clean modern styling, "
-            "deep teal suit jacket over a dark shirt, calm focused expression"
+            "confident man in his early 30s, clean modern styling, deep teal suit "
+            "jacket over a dark shirt, calm focused expression"
         ),
     },
     "challenger_1": {
@@ -36,8 +53,8 @@ SPEAKER_PROFILES: dict[str, dict[str, Any]] = {
         "label": "Second Speaker",
         "seed": 411101,
         "description": (
-            "female-presenting debate contestant, late 20s, composed and sharp, deep red "
-            "tailored blazer over a black top, expressive but controlled presence"
+            "composed woman in her late 20s, sharp confident presence, deep red "
+            "tailored blazer over a black top"
         ),
     },
     "challenger_2": {
@@ -45,8 +62,8 @@ SPEAKER_PROFILES: dict[str, dict[str, Any]] = {
         "label": "Third Speaker",
         "seed": 411201,
         "description": (
-            "male-presenting debate contestant, mid 30s, analytical and intense, burgundy "
-            "tailored jacket over a charcoal shirt, direct steady posture"
+            "analytical man in his mid 30s, burgundy tailored jacket over a "
+            "charcoal shirt, steady direct posture"
         ),
     },
     "challenger_3": {
@@ -54,23 +71,42 @@ SPEAKER_PROFILES: dict[str, dict[str, Any]] = {
         "label": "Fourth Speaker",
         "seed": 411301,
         "description": (
-            "female-presenting debate contestant, early 30s, poised and skeptical, rust-red "
-            "tailored jacket over a dark top, cinematic debate-show presence"
+            "poised woman in her early 30s, rust-red tailored jacket over a dark "
+            "top, confident debate-show presence"
         ),
     },
 }
 
 SHOT_DESCRIPTIONS = {
-    "intro_wide": "vertical establishing shot of the whole debate table and panel in a cinematic studio",
-    "intro_table": "vertical table-level opening shot with the debate desk leading the eye into the room",
-    "intro_panel": "vertical opening shot of the opposing speaker bench in a premium studio debate set",
-    "close": "tight vertical upper-body speaking reference, head and shoulders prominent",
-    "medium": "vertical medium upper-body speaking reference, chest and arms visible, table edge in foreground",
-    "profile": "vertical side profile speaking reference, cinematic panel-discussion angle",
-    "over_table": "vertical over-table speaking reference with depth across the debate desk",
+    "intro_wide": "vertical wide view of the whole debate table and panel in a cinematic studio",
+    "intro_table": "vertical table-level opening view with the debate desk leading the eye into the room",
+    "intro_panel": "vertical opening view of the opposing speaker bench in a premium studio debate set",
+    "close": "tight vertical upper-body speaking view, head and shoulders prominent",
+    "medium": "vertical medium upper-body speaking view, chest and arms visible, table edge in foreground",
+    "profile": "vertical side-profile speaking view, cinematic panel-discussion angle",
+    "over_table": "vertical over-table speaking view with depth across the debate desk",
+}
+
+# DashScope error codes worth retrying with backoff (rate limits / transient).
+RETRYABLE_CODES = {
+    "Throttling",
+    "Throttling.RateQuota",
+    "Throttling.AllocationQuota",
+    "RequestTimeOut",
+    "InternalError",
+    "SystemError",
+    "InternalError.Algo",
 }
 
 JOBS: dict[str, dict[str, Any]] = {}
+
+
+class QwenRequestError(RuntimeError):
+    def __init__(self, status: int, code: str, message: str):
+        super().__init__(f"Qwen request failed {status} [{code}]: {message}")
+        self.status = status
+        self.code = code
+        self.retryable = code in RETRYABLE_CODES or status >= 500
 
 
 def repo_root() -> Path:
@@ -122,11 +158,13 @@ def status(settings: Settings) -> dict[str, Any]:
     generated = [
         shot for shot in shots if shot.get("status") in {"generated", "existing"} and shot.get("realistic")
     ]
+    failed = [shot for shot in shots if shot.get("status") == "failed"]
     available = bool(current and not current.get("dry_run") and generated)
     return {
         "available": available,
         "source_count": len(src.get("shots", [])),
         "generated_count": len(generated),
+        "failed_count": len(failed),
         "manifest_url": "/media/realistic-refs/manifest.json" if available else None,
         "files_url": "/media/realistic-refs/files/",
         "model": settings.qwen_image_edit_model,
@@ -152,20 +190,35 @@ def prompt_for(shot: dict[str, Any]) -> str:
         "Use the input image as the exact composition reference for the debate room, seating layout, "
         "table geometry and camera angle."
         if is_intro
-        else "Use image 1 as the locked identity/style reference for the person, and image 2 as the exact pose, "
+        else "Use image 1 as the locked identity reference for the person, and image 2 as the exact pose, "
         "framing, camera angle and table composition reference."
     )
     return " ".join(
         [
             identity_line,
-            "Create a realistic 9:16 cinematic live-action frame for a premium AI debate show.",
+            "Create a realistic 9:16 cinematic live-action frame for a premium televised debate show.",
             f"Subject: {profile['description']}.",
-            f"Shot: {shot_text}.",
-            "Preserve the same speaker slot, seating position, body orientation, table placement, lighting direction and camera perspective from the source reference.",
-            "Keep the character visually consistent across all outputs for this speaker: same face structure, outfit color family, hairstyle silhouette, body type and overall identity.",
-            "Make it photorealistic: real human proportions, natural skin, realistic fabric, cinematic studio lighting, polished broadcast set, shallow but usable depth of field.",
-            "No captions, no subtitles, no lower thirds, no text, no logos, no watermark, no UI elements.",
+            f"Camera: {shot_text}.",
+            "Preserve the same speaker position, body orientation, table placement, lighting direction and camera perspective from the source reference.",
+            "Keep this speaker visually consistent across every image: same facial features, hairstyle, outfit colors and overall identity.",
+            "Style: photorealistic broadcast photography, natural lighting, realistic fabric and materials, polished studio set, gentle depth of field.",
+            "No captions, no subtitles, no lower thirds, no text, no logos, no watermark.",
         ]
+    )
+
+
+def fallback_prompt_for(shot: dict[str, Any]) -> str:
+    """Deliberately plain wording used when moderation rejects the main prompt."""
+    if shot.get("group") == "intro":
+        return (
+            "Turn this image into a realistic photo of the same television debate studio. "
+            "Keep the same composition, seating layout, table and camera angle. "
+            "Vertical 9:16 framing. No text or logos."
+        )
+    return (
+        "Turn this into a realistic photo of a professional television debate speaker. "
+        "Keep the same pose, seat position, outfit colors and camera angle as the reference images. "
+        "Vertical 9:16 framing. No text or logos."
     )
 
 
@@ -173,34 +226,43 @@ def negative_prompt() -> str:
     return ", ".join(
         [
             "cartoon",
+            "anime",
+            "illustration",
             "3d render",
             "toy",
             "plastic",
-            "robot",
-            "mannequin",
-            "helmet",
-            "faceless",
-            "extra limbs",
-            "distorted hands",
+            "doll",
+            "low quality",
+            "blurry",
             "text",
             "caption",
             "subtitle",
             "logo",
             "watermark",
-            "cropped head",
-            "out of frame subject",
         ]
     )
 
 
 def image_data_url(file: Path) -> str:
-    return "data:image/png;base64," + base64.b64encode(file.read_bytes()).decode("ascii")
+    data = file.read_bytes()
+    mime = "image/jpeg" if data[:2] == b"\xff\xd8" else "image/png"
+    return f"data:{mime};base64," + base64.b64encode(data).decode("ascii")
+
+
+def plan_priority(shot: dict[str, Any]) -> int:
+    """Intros and identity-anchor close shots first, dependent angles after."""
+    if shot.get("group") == "intro":
+        return 0
+    if shot.get("id") == "close":
+        return 1
+    return 2
 
 
 def build_plan(limit: int = 0) -> list[dict[str, Any]]:
     src_manifest = source_manifest()
     shots = src_manifest.get("shots", [])
     selected = shots[:limit] if limit and limit > 0 else shots
+    selected = sorted(selected, key=plan_priority)
     out: list[dict[str, Any]] = []
     for shot in selected:
         source_starter = source_ref_dir() / shot["starter"]
@@ -213,15 +275,22 @@ def build_plan(limit: int = 0) -> list[dict[str, Any]]:
             None,
         )
         identity_starter = source_ref_dir() / identity_shot["starter"] if identity_shot else source_starter
+        identity_output_rel = (
+            str(Path(identity_shot["starter"]).parent / "realistic.png").replace("\\", "/")
+            if identity_shot
+            else None
+        )
         output_rel = str(Path(shot["starter"]).parent / "realistic.png").replace("\\", "/")
         out.append(
             {
                 "shot": shot,
                 "source_starter": source_starter,
                 "identity_starter": identity_starter,
+                "identity_output_rel": identity_output_rel,
                 "output_rel": output_rel,
                 "seed": stable_seed(shot),
                 "prompt": prompt_for(shot),
+                "fallback_prompt": fallback_prompt_for(shot),
             }
         )
     return out
@@ -239,51 +308,91 @@ def output_urls(result: dict[str, Any]) -> list[str]:
 
 
 async def request_edit(
+    client: httpx.AsyncClient,
     settings: Settings,
     input_images: list[str],
     prompt: str,
     seed: int,
     size: str,
 ) -> dict[str, Any]:
-    async with httpx.AsyncClient(timeout=settings.request_timeout_s) as client:
-        response = await client.post(
-            settings.qwen_image_edit_url,
-            headers={
-                "Authorization": f"Bearer {settings.qwen_dashscope_api_key}",
-                "Content-Type": "application/json",
+    response = await client.post(
+        settings.qwen_image_edit_url,
+        headers={
+            "Authorization": f"Bearer {settings.qwen_dashscope_api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": settings.qwen_image_edit_model,
+            "input": {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            *({"image": image} for image in input_images),
+                            {"text": prompt},
+                        ],
+                    }
+                ],
             },
-            json={
-                "model": settings.qwen_image_edit_model,
-                "input": {
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                *({"image": image} for image in input_images),
-                                {"text": prompt},
-                            ],
-                        }
-                    ],
-                },
-                "parameters": {
-                    "n": 1,
-                    "size": size,
-                    "seed": seed,
-                    "watermark": False,
-                    "prompt_extend": True,
-                    "negative_prompt": negative_prompt(),
-                },
+            "parameters": {
+                "n": 1,
+                "size": size,
+                "seed": seed,
+                "watermark": False,
+                # Off on purpose: the server-side rewritten prompt is re-run
+                # through content inspection and randomly trips it.
+                "prompt_extend": False,
+                "negative_prompt": negative_prompt(),
             },
-        )
-    data = response.json()
+        },
+    )
+    try:
+        data = response.json()
+    except Exception:
+        data = {}
     if response.status_code >= 400:
-        raise RuntimeError(f"Qwen request failed {response.status_code}: {data}")
+        raise QwenRequestError(
+            response.status_code,
+            str(data.get("code", "Unknown")),
+            str(data.get("message", data or response.text)),
+        )
     return data
 
 
-async def download(url: str, file: Path) -> None:
-    async with httpx.AsyncClient(timeout=120) as client:
-        response = await client.get(url)
+async def request_edit_with_retry(
+    client: httpx.AsyncClient,
+    settings: Settings,
+    *,
+    input_images: list[str],
+    prompt: str,
+    fallback_prompt: str,
+    seed: int,
+    size: str,
+    max_attempts: int = 5,
+) -> tuple[dict[str, Any], str]:
+    """Retry throttles/transients with backoff; retry moderation rejections once
+    with the plain fallback prompt. Returns (result, prompt actually used)."""
+    active_prompt = prompt
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            result = await request_edit(client, settings, input_images, active_prompt, seed, size)
+            return result, active_prompt
+        except QwenRequestError as exc:
+            if exc.code == "DataInspectionFailed" and active_prompt != fallback_prompt:
+                active_prompt = fallback_prompt
+                continue
+            if not exc.retryable or attempt >= max_attempts:
+                raise
+        except (httpx.TimeoutException, httpx.TransportError):
+            if attempt >= max_attempts:
+                raise
+        await asyncio.sleep(min(2**attempt * 2, 45) + random.uniform(0, 1))
+
+
+async def download(client: httpx.AsyncClient, url: str, file: Path) -> None:
+    response = await client.get(url)
     response.raise_for_status()
     file.parent.mkdir(parents=True, exist_ok=True)
     file.write_bytes(response.content)
@@ -295,7 +404,7 @@ async def generate(
     dry_run: bool = False,
     limit: int = 0,
     overwrite: bool = False,
-    delay_ms: int = 33000,
+    delay_ms: int = 2000,
     size: str = "1080*1920",
     progress: Any | None = None,
 ) -> dict[str, Any]:
@@ -318,66 +427,118 @@ async def generate(
         "shots": [],
     }
 
-    for index, item in enumerate(plan):
-        output_file = out_dir / item["output_rel"]
-        exists = output_file.exists()
-        if progress:
-            progress({"current": index + 1, "total": len(plan), "path": item["output_rel"]})
+    def flush() -> None:
+        manifest["generated_count"] = sum(
+            1 for s in manifest["shots"] if s.get("status") in {"generated", "existing"}
+        )
+        manifest["failed_count"] = sum(1 for s in manifest["shots"] if s.get("status") == "failed")
+        (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-        if exists and not overwrite:
-            manifest["shots"].append(
-                {
-                    **item["shot"],
-                    "realistic": item["output_rel"],
-                    "seed": item["seed"],
-                    "prompt": item["prompt"],
-                    "status": "existing",
-                }
+    data_url_cache: dict[Path, str] = {}
+
+    def cached_data_url(file: Path) -> str:
+        if file not in data_url_cache:
+            data_url_cache[file] = image_data_url(file)
+        return data_url_cache[file]
+
+    failed = 0
+    async with httpx.AsyncClient(timeout=settings.request_timeout_s) as client:
+        for index, item in enumerate(plan):
+            output_file = out_dir / item["output_rel"]
+            if progress:
+                progress(
+                    {
+                        "current": index + 1,
+                        "total": len(plan),
+                        "path": item["output_rel"],
+                        "failed": failed,
+                    }
+                )
+
+            if output_file.exists() and not overwrite:
+                manifest["shots"].append(
+                    {
+                        **item["shot"],
+                        "realistic": item["output_rel"],
+                        "seed": item["seed"],
+                        "prompt": item["prompt"],
+                        "status": "existing",
+                    }
+                )
+                flush()
+                continue
+
+            if dry_run:
+                manifest["shots"].append(
+                    {
+                        **item["shot"],
+                        "realistic": item["output_rel"],
+                        "seed": item["seed"],
+                        "prompt": item["prompt"],
+                        "status": "planned",
+                    }
+                )
+                flush()
+                continue
+
+            # Prefer the already-generated realistic close shot as the identity
+            # anchor; the plan ordering guarantees close shots run first.
+            identity_realistic = (
+                out_dir / item["identity_output_rel"] if item["identity_output_rel"] else None
             )
-            continue
-
-        if dry_run:
-            manifest["shots"].append(
-                {
-                    **item["shot"],
-                    "realistic": item["output_rel"],
-                    "seed": item["seed"],
-                    "prompt": item["prompt"],
-                    "status": "planned",
-                }
+            identity_file = (
+                identity_realistic
+                if identity_realistic and identity_realistic.exists() and identity_realistic != output_file
+                else item["identity_starter"]
             )
-            continue
+            if identity_file == item["source_starter"] or identity_realistic == output_file:
+                input_images = [cached_data_url(item["source_starter"])]
+            else:
+                input_images = [
+                    cached_data_url(identity_file),
+                    cached_data_url(item["source_starter"]),
+                ]
 
-        input_images = (
-            [image_data_url(item["source_starter"])]
-            if item["identity_starter"] == item["source_starter"]
-            else [image_data_url(item["identity_starter"]), image_data_url(item["source_starter"])]
-        )
-        result = await request_edit(
-            settings,
-            input_images=input_images,
-            prompt=item["prompt"],
-            seed=item["seed"],
-            size=size,
-        )
-        urls = output_urls(result)
-        if not urls:
-            raise RuntimeError(f"No output URL for {item['output_rel']}: {result}")
-        await download(urls[0], output_file)
-        manifest["shots"].append(
-            {
-                **item["shot"],
-                "realistic": item["output_rel"],
-                "seed": item["seed"],
-                "prompt": item["prompt"],
-                "status": "generated",
-            }
-        )
+            try:
+                result, used_prompt = await request_edit_with_retry(
+                    client,
+                    settings,
+                    input_images=input_images,
+                    prompt=item["prompt"],
+                    fallback_prompt=item["fallback_prompt"],
+                    seed=item["seed"],
+                    size=size,
+                )
+                urls = output_urls(result)
+                if not urls:
+                    raise RuntimeError(f"No output URL in response: {result}")
+                await download(client, urls[0], output_file)
+                manifest["shots"].append(
+                    {
+                        **item["shot"],
+                        "realistic": item["output_rel"],
+                        "seed": item["seed"],
+                        "prompt": used_prompt,
+                        "status": "generated",
+                    }
+                )
+            except Exception as exc:
+                failed += 1
+                manifest["shots"].append(
+                    {
+                        **item["shot"],
+                        "seed": item["seed"],
+                        "prompt": item["prompt"],
+                        "status": "failed",
+                        "error": str(exc),
+                    }
+                )
+            flush()
 
-        if index < len(plan) - 1 and delay_ms > 0:
-            await asyncio.sleep(delay_ms / 1000)
+            if index < len(plan) - 1 and delay_ms > 0:
+                await asyncio.sleep(delay_ms / 1000)
 
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    flush()
     return manifest
 
 
@@ -389,6 +550,7 @@ def create_job() -> dict[str, Any]:
         "current": 0,
         "total": 0,
         "path": None,
+        "failed": 0,
         "error": None,
         "manifest": None,
         "created_at": time.time(),
@@ -409,9 +571,19 @@ async def run_job(job_id: str, settings: Settings, **kwargs: Any) -> None:
 
     try:
         manifest = await generate(settings, progress=progress, **kwargs)
-        job["status"] = "succeeded"
+        shots = manifest.get("shots", [])
+        generated = [s for s in shots if s.get("status") in {"generated", "existing", "planned"}]
+        failures = [s for s in shots if s.get("status") == "failed"]
+        job["failed"] = len(failures)
+        job["status"] = (
+            "failed" if failures and not generated else "partial" if failures else "succeeded"
+        )
+        if failures:
+            job["error"] = failures[0].get("error")
         job["manifest"] = {
-            "shots": len(manifest.get("shots", [])),
+            "shots": len(shots),
+            "generated": len(generated),
+            "failed": len(failures),
             "manifest_url": "/media/realistic-refs/manifest.json",
             "files_url": "/media/realistic-refs/files/",
         }

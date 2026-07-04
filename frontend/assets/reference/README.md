@@ -27,9 +27,22 @@ npm run capture:refs
 Realistic Qwen Image Edit Max pass generated from `vertical-v1`.
 
 Each generated image uses the matching 9:16 starter frame as the composition
-reference. Speaker shots also use that speaker's `close` starter as the
-identity anchor so the main, second, third and fourth speaker stay consistent
-across their angles.
+reference. Generation runs in two phases: intros and each speaker's `close`
+shot first, then the remaining angles. Once a speaker's realistic `close`
+image exists it becomes the identity anchor for that speaker's other angles,
+so consistency is locked to a generated photo instead of the stylized starter.
+
+Robustness:
+
+- Prompts avoid DashScope moderation false-positive terms and run with
+  `prompt_extend` off; a `DataInspectionFailed` rejection retries once with a
+  plain fallback prompt.
+- Throttling and transient errors retry with exponential backoff, so the
+  fixed inter-shot delay is small (2s) instead of 33s.
+- A shot that still fails is recorded in the manifest (`status: "failed"`)
+  and the run continues. The manifest is rewritten after every shot, so
+  partial banks are served immediately and re-running the same command (no
+  `--overwrite`) retries only the missing shots.
 
 Plan prompts without API calls:
 

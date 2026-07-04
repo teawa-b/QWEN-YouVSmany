@@ -110,7 +110,8 @@ class RealisticRefsGenerateBody(BaseModel):
     dry_run: bool = False
     limit: int = Field(default=0, ge=0, description="0 generates the whole bank")
     overwrite: bool = False
-    delay_ms: int = Field(default=33000, ge=0, le=120000)
+    # Small pacing delay; rate limits are handled by retry/backoff per shot.
+    delay_ms: int = Field(default=2000, ge=0, le=120000)
     background: bool = True
     size: str = "1080*1920"
 

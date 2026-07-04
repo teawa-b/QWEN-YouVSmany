@@ -33,3 +33,66 @@ def test_dry_run_realistic_ref_manifest_does_not_need_key(tmp_path):
     assert manifest["dry_run"] is True
     assert manifest["shots"][0]["status"] == "planned"
     assert (tmp_path / "realistic-v1" / "manifest.json").exists()
+
+
+def test_close_identity_shots_are_generated_before_other_angles():
+    plan = reference_assets.build_plan()
+
+    kinds = [
+        "intro" if item["shot"]["group"] == "intro" else item["shot"]["id"] == "close"
+        for item in plan
+    ]
+    first_other = next(i for i, k in enumerate(kinds) if k is False)
+    assert all(k is False for k in kinds[first_other:])
+
+
+def test_failed_shot_is_recorded_and_run_continues(tmp_path, monkeypatch):
+    settings = Settings(
+        qwen_dashscope_api_key="test-key", realistic_ref_dir=str(tmp_path / "realistic-v1")
+    )
+    calls = []
+
+    async def always_rejected(client, settings, input_images, prompt, seed, size):
+        calls.append(prompt)
+        raise reference_assets.QwenRequestError(400, "DataInspectionFailed", "flagged")
+
+    monkeypatch.setattr(reference_assets, "request_edit", always_rejected)
+
+    manifest = asyncio.run(reference_assets.generate(settings, limit=2, delay_ms=0))
+
+    assert [shot["status"] for shot in manifest["shots"]] == ["failed", "failed"]
+    assert "DataInspectionFailed" in manifest["shots"][0]["error"]
+    assert manifest["failed_count"] == 2
+    # Each shot tried the main prompt, then the sanitized fallback once.
+    assert len(calls) == 4
+
+
+def test_moderation_rejection_retries_with_fallback_prompt(tmp_path, monkeypatch):
+    settings = Settings(
+        qwen_dashscope_api_key="test-key", realistic_ref_dir=str(tmp_path / "realistic-v1")
+    )
+    calls = []
+
+    async def reject_then_accept(client, settings, input_images, prompt, seed, size):
+        calls.append(prompt)
+        if len(calls) == 1:
+            raise reference_assets.QwenRequestError(400, "DataInspectionFailed", "flagged")
+        return {
+            "output": {
+                "choices": [{"message": {"content": [{"image": "https://example.com/x.png"}]}}]
+            }
+        }
+
+    async def fake_download(client, url, file):
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(b"png")
+
+    monkeypatch.setattr(reference_assets, "request_edit", reject_then_accept)
+    monkeypatch.setattr(reference_assets, "download", fake_download)
+
+    manifest = asyncio.run(reference_assets.generate(settings, limit=1, delay_ms=0))
+
+    shot = manifest["shots"][0]
+    assert shot["status"] == "generated"
+    assert shot["prompt"] == reference_assets.fallback_prompt_for(shot)
+    assert (tmp_path / "realistic-v1" / shot["realistic"]).exists()

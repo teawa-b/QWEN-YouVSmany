@@ -12,7 +12,7 @@ ShowBrief ─▶ Topic Producer ─▶ [safety/factuality gate] ─▶ (SourceBr
                  ▼  run_debate()  — director-driven state machine
    OPENING ─▶ CONTENTIONS ─▶ RAPID_REBUTTAL ─▶ CLOSING ─▶ LOCKED
         director control: next speaker · repetition kill · dominance cap · disputed question
-        Surrounded ritual: claim card per duel · voted-out caption (non-spoken) resets the seat
+        room crossfire: one shared claim card · rotating challenger follow-ups (no per-duel voted-out resets)
         memory: rolling summary · unresolved claims · speaker stats (compact context only)
                  │
                  ▼  lock_episode()  state: LOCKED

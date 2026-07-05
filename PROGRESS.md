@@ -68,7 +68,7 @@ Sub-tasks:
 - [x] **Close-up camera framing**: seated head height is measured from the
       Mixamo head bone instead of the animated bounding box (raised hands were
       inflating the target), and close shots now frame the visible upper body.
-- [x] **Backend tests**: 30 tests passing for state machine, scene contract,
+- [x] **Backend tests**: 46 tests passing for state machine, scene contract,
       voice mapping, determinism, schemas, safety and metrics.
 - [x] **9:16 reference asset bank**: starter images and silent speaking-angle
       clips for intro, main speaker, second speaker, third speaker and fourth

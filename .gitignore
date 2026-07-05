@@ -23,6 +23,15 @@ venv/
 /backend/.artifacts/
 /output/
 
+# Node
+node_modules/
+package-lock.json
+
+# Vendored runtime libraries are committed (the Python build/ pattern above
+# would otherwise swallow frontend/vendor/three/build/)
+!frontend/vendor/
+!frontend/vendor/**
+
 # Frontend build outputs if a bundler is added later
 /frontend/dist/
 /frontend/build/

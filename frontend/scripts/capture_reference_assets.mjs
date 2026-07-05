@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { launchBrowser } from "./lib/browser.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND_ROOT = path.resolve(__dirname, "..");
@@ -59,20 +60,6 @@ const shotPlan = [
 
 const selectedShots = config.limit > 0 ? shotPlan.slice(0, config.limit) : shotPlan;
 
-async function launchBrowser() {
-  const attempts = [
-    { channel: "msedge", headless: true },
-    { headless: true },
-  ];
-  for (const opts of attempts) {
-    try {
-      return await playwright.chromium.launch(opts);
-    } catch (error) {
-      if (opts === attempts.at(-1)) throw error;
-    }
-  }
-}
-
 function dataUrlToBuffer(dataUrl) {
   const base64 = dataUrl.split(",", 2)[1];
   return Buffer.from(base64, "base64");
@@ -86,7 +73,7 @@ async function writeDataUrl(file, dataUrl) {
 async function main() {
   await fs.mkdir(config.outDir, { recursive: true });
 
-  const browser = await launchBrowser();
+  const browser = await launchBrowser(playwright);
   const page = await browser.newPage({
     viewport: { width: config.width + 80, height: config.height + 80 },
     deviceScaleFactor: 1,

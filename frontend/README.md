@@ -2,6 +2,9 @@
 
 Static single-page app for running and inspecting debate episodes.
 
+Three.js is vendored at `vendor/three/` (v0.160.0, build + the addons the
+player uses), so the app has no runtime CDN dependency and works offline.
+
 ## Run Locally
 
 ```bash
@@ -19,6 +22,15 @@ npm run visual:qa
 This browser check mounts the Three.js player from a scene manifest, verifies
 that the premade GLB studio set loaded, checks the 9:16 crop area, and confirms
 that the local realistic reference bank is served with valid media MIME types.
+
+The browser-driven scripts (`visual:qa`, `package:episode`, `capture:refs`,
+`export:mock-video`) need Playwright plus a Chromium-family browser. They try
+Edge, then Playwright's managed Chromium. To use a specific system browser
+(e.g. in containers/CI where Playwright's own build is not downloaded), set:
+
+```bash
+YVM_BROWSER_PATH=/path/to/chrome npm run visual:qa
+```
 
 ## Package Episode
 

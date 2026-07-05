@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { launchBrowser } from "./lib/browser.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
@@ -106,24 +107,13 @@ const cast = [
   },
 ];
 
-async function launchBrowser() {
-  const attempts = [{ channel: "msedge", headless: true }, { headless: true }];
-  for (const opts of attempts) {
-    try {
-      return await playwright.chromium.launch(opts);
-    } catch (error) {
-      if (opts === attempts.at(-1)) throw error;
-    }
-  }
-}
-
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
 async function main() {
   await fs.mkdir(config.outDir, { recursive: true });
-  const browser = await launchBrowser();
+  const browser = await launchBrowser(playwright);
   const page = await browser.newPage({
     viewport: { width: config.width, height: config.height },
     deviceScaleFactor: 1,

@@ -4,6 +4,8 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { launchBrowser } from "./lib/browser.mjs";
+import { findFfmpeg, retimeDir } from "./retime_package.mjs";
+import { finalizeEpisode } from "./finalize_episode.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
@@ -354,7 +356,7 @@ a{color:#95adff}@media(max-width:760px){.hero{grid-template-columns:1fr}}
     <span>${episode.cast.length} speakers</span>
   </div>
   <section class="hero">
-    <video src="${pkg.base_edit.file}"${posterAttr} controls muted playsinline></video>
+    <video src="${pkg.final_episode?.file || pkg.base_edit.file}"${posterAttr} controls muted playsinline></video>
     <div class="panel">
       <h2>Package Contents</h2>
       <pre>${escapeHtml(JSON.stringify(pkg.summary, null, 2))}</pre>
@@ -456,6 +458,36 @@ async function main() {
   }
 
   await browser.close();
+
+  // MediaRecorder stamps frames in wall-clock time while the capture loop
+  // advances the player by exactly 1/fps per frame, so the raw WebMs play in
+  // slow motion. Retime them to normal-speed MP4s when ffmpeg is available.
+  const ffmpeg = findFfmpeg();
+  if (ffmpeg) {
+    const retimed = await retimeDir(out, { fps: config.fps, ffmpeg });
+    const swap = (entry) => {
+      const mp4 = retimed.get(path.join(out, entry.file));
+      if (mp4) {
+        entry.raw_file = entry.file;
+        entry.file = relative(mp4);
+      }
+    };
+    swap(assets.base_edit);
+    assets.segment_clips.forEach(swap);
+    assets.shorts.forEach(swap);
+    assets.capture.retimed = true;
+    // Burn timed speaker captions into the retimed base edit — the captions
+    // live in the page DOM during capture, so the raw video has none.
+    const finalFile = await finalizeEpisode(out, { ffmpeg });
+    assets.final_episode = { file: relative(finalFile), captions: "captions.ass" };
+  } else {
+    assets.capture.retimed = false;
+    console.warn(
+      "ffmpeg not found — captured WebM files keep wall-clock (slow) timing; " +
+      "set YVM_FFMPEG_PATH or install ffmpeg, then run: npm run retime:package -- --dir=" +
+      path.relative(REPO_ROOT, out),
+    );
+  }
 
   assets.summary = {
     state: episode.state,

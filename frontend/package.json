@@ -12,6 +12,8 @@
     "generate:happyhorse-video": "node scripts/run_happyhorse_video_edit.mjs",
     "export:mock-video": "node scripts/export_mock_episode_video.mjs",
     "package:episode": "node scripts/package_episode.mjs",
+    "retime:package": "node scripts/retime_package.mjs",
+    "finalize:episode": "node scripts/finalize_episode.mjs",
     "visual:qa": "node scripts/visual_qa.mjs"
   },
   "engines": {

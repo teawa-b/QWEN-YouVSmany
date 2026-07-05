@@ -64,6 +64,9 @@ It exposes:
 - `POST /media/character-bank/generate`
 - `GET /media/video-edit/status`
 - `POST /media/video-edit/generate`
+- `GET /media/shorts/status`
+- `POST /media/shorts/generate`
+- `POST /media/video-variants/generate`
 
 ## Frontend
 

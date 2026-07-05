@@ -154,6 +154,13 @@ class VideoEditSegment(BaseModel):
         default=None,
         description="Persistent roster character id whose bank identity image anchors the face",
     )
+    dialogue: str | None = Field(
+        default=None, description="Spoken line, burned as a caption into the stitched video"
+    )
+    speaker_name: str | None = Field(default=None, description="Caption speaker label")
+    speaker_color: str | None = Field(
+        default=None, description="Caption speaker color (hex, e.g. #7b97ff)"
+    )
 
 
 class VideoEditGenerateBody(BaseModel):

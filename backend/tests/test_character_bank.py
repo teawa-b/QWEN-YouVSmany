@@ -149,6 +149,26 @@ def test_character_bank_api_endpoints(tmp_path, monkeypatch):
     assert r.status_code == 503
 
 
+def test_stitch_captions_ass_builder():
+    from youvsmany.media.video_edit import build_captions_ass
+
+    ass = build_captions_ass(
+        [
+            {"start_s": 0.0, "end_s": 4.2, "dialogue": "One claim on the floor.",
+             "speaker_name": "Tom", "speaker_color": "#7b97ff"},
+            {"start_s": 4.2, "end_s": 8.0, "dialogue": None},  # no caption
+            {"start_s": 8.0, "end_s": 12.5, "dialogue": "Moisture {pooling} is the problem",
+             "speaker_name": "Iris", "speaker_color": "#f0997b"},
+        ]
+    )
+    assert "PlayResX: 1080" in ass
+    assert "Dialogue: 0,0:00:00.00,0:00:04.20,Caption" in ass
+    assert "{\\c&HFF977B&}TOM" in ass  # #7b97ff -> BGR
+    assert "Dialogue: 0,0:00:08.00,0:00:12.50,Caption" in ass
+    assert "Moisture (pooling) is the problem" in ass  # braces sanitized
+    assert ass.count("Dialogue:") == 2  # the caption-less cue produces no event
+
+
 def test_video_edit_media_prefers_roster_identity(tmp_path, monkeypatch):
     from youvsmany.media import video_edit
 

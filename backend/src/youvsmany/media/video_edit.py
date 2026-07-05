@@ -273,9 +273,83 @@ async def download(client: httpx.AsyncClient, url: str, file: Path) -> None:
     file.write_bytes(response.content)
 
 
+def ffprobe_path() -> str | None:
+    return shutil.which("ffprobe")
+
+
+def media_duration_s(file: Path) -> float | None:
+    ffprobe = ffprobe_path()
+    if not ffprobe:
+        return None
+    result = subprocess.run(
+        [ffprobe, "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(file)],
+        capture_output=True, text=True,
+    )
+    try:
+        return float(result.stdout.strip())
+    except (ValueError, AttributeError):
+        return None
+
+
+def _ass_time(seconds: float) -> str:
+    cs = max(0, round(seconds * 100))
+    return f"{cs // 360000}:{cs % 360000 // 6000:02d}:{cs % 6000 // 100:02d}.{cs % 100:02d}"
+
+
+def _ass_color(hex_color: str) -> str:
+    hex_color = (hex_color or "#ffffff").lstrip("#")
+    if len(hex_color) != 6:
+        hex_color = "ffffff"
+    r, g, b = hex_color[0:2], hex_color[2:4], hex_color[4:6]
+    return f"&H{(b + g + r).upper()}&"
+
+
+def _ass_escape(text: str) -> str:
+    return str(text).replace("\\", "\\\\").replace("{", "(").replace("}", ")").replace("\n", "\\N")
+
+
+def build_captions_ass(cues: list[dict[str, Any]]) -> str:
+    """Styled ASS captions for the stitched conversation. ``cues`` items carry
+    start_s/end_s/dialogue plus optional speaker_name/speaker_color (hex).
+    Mirrors the caption styling in frontend/scripts/finalize_episode.mjs,
+    scaled for the 1080x1920 stitch output."""
+    events = []
+    for cue in cues:
+        if not cue.get("dialogue"):
+            continue
+        name = _ass_escape(str(cue.get("speaker_name") or "").upper())
+        color = _ass_color(cue.get("speaker_color") or "#ffffff")
+        text = _ass_escape(cue["dialogue"])
+        lead = f"{{\\c{color}}}{name}\\N" if name else ""
+        events.append(
+            f"Dialogue: 0,{_ass_time(cue['start_s'])},{_ass_time(cue['end_s'])},Caption,,0,0,0,,"
+            f"{lead}{{\\c&HFFFFFF&}}{text}"
+        )
+    return "\n".join(
+        [
+            "[Script Info]",
+            "ScriptType: v4.00+",
+            "PlayResX: 1080",
+            "PlayResY: 1920",
+            "WrapStyle: 0",
+            "",
+            "[V4+ Styles]",
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+            "Style: Caption,DejaVu Sans,44,&HFFFFFF&,&HFFFFFF&,&H90101318&,&H90101318&,-1,0,0,0,100,100,0,0,3,20,0,2,56,56,128,1",
+            "",
+            "[Events]",
+            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+            *events,
+            "",
+        ]
+    )
+
+
 def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> str | None:
     """Concatenate finished segment videos (muxing per-segment TTS audio when
-    given) into conversation.mp4. Returns the relative output path, or None."""
+    given) into conversation.mp4, burning timed speaker captions when the
+    segments carry dialogue. Returns the relative output path, or None."""
     ffmpeg = ffmpeg_path()
     videos = [e for e in entries if e.get("status") == "generated" and e.get("video")]
     if not ffmpeg or not videos:
@@ -283,6 +357,8 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
     work = out_dir / "stitch"
     work.mkdir(parents=True, exist_ok=True)
     parts: list[Path] = []
+    cues: list[dict[str, Any]] = []
+    cursor = 0.0
     for i, entry in enumerate(videos):
         segment_file = out_dir / entry["video"]
         part = work / f"part_{i:03d}.mp4"
@@ -296,6 +372,18 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
         cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "24", "-vf", "scale=1080:1920", str(part)]
         subprocess.run(cmd, check=True, capture_output=True)
         parts.append(part)
+        duration = media_duration_s(part)
+        if duration:
+            cues.append(
+                {
+                    "start_s": cursor,
+                    "end_s": cursor + duration,
+                    "dialogue": entry.get("dialogue"),
+                    "speaker_name": entry.get("speaker_name"),
+                    "speaker_color": entry.get("speaker_color"),
+                }
+            )
+            cursor += duration
     list_file = work / "concat.txt"
     list_file.write_text("".join(f"file '{p.name}'\n" for p in parts), encoding="utf-8")
     output = out_dir / "conversation.mp4"
@@ -304,6 +392,24 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
         check=True,
         capture_output=True,
     )
+
+    # Burn timed speaker captions over the stitched video (best-effort: a
+    # captionless conversation is still a valid deliverable).
+    if any(c.get("dialogue") for c in cues):
+        try:
+            ass_file = out_dir / "captions.ass"
+            ass_file.write_text(build_captions_ass(cues), encoding="utf-8")
+            captioned = work / "conversation_captioned.mp4"
+            ass_arg = str(ass_file).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+            subprocess.run(
+                [ffmpeg, "-y", "-i", str(output), "-vf", f"subtitles='{ass_arg}'",
+                 "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "copy",
+                 "-movflags", "+faststart", str(captioned)],
+                check=True, capture_output=True,
+            )
+            shutil.move(str(captioned), str(output))
+        except subprocess.CalledProcessError:
+            pass
     shutil.rmtree(work, ignore_errors=True)
     return "conversation.mp4"
 
@@ -385,6 +491,10 @@ async def generate(
             "speaker_id": segment.get("speaker_id"),
             "prompt": segment["prompt"],
             "clip": segment["clip"],
+            # Caption fields, burned into the stitched conversation.
+            "dialogue": segment.get("dialogue"),
+            "speaker_name": segment.get("speaker_name"),
+            "speaker_color": segment.get("speaker_color"),
         }
         video_rel = f"segments/{index:03d}_{entry['segment_id']}.mp4"
         try:

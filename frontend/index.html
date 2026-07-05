@@ -1008,9 +1008,9 @@ async function mountHappyHorseFlow(d, colorFor){
     }
   };
   select(0, false);
-  mountLiveVideoStep(d, segments, {video, overlay});
+  mountLiveVideoStep(d, segments, {video, overlay}, colorFor);
 }
-async function mountLiveVideoStep(d, segments, els){
+async function mountLiveVideoStep(d, segments, els, colorFor){
   const statusEl = $("#hhVideoStatus"), genBtn = $("#hhGenerateVideo"),
         playBtn = $("#hhPlayLive"), jobStatus = $("#hhVideoJobStatus");
   if(!statusEl) return;
@@ -1054,6 +1054,9 @@ async function mountLiveVideoStep(d, segments, els){
           starter: item.ref.starter,
           audio: audioRefFor(d, item.segment),
           character: charRefFor(d, item.segment)?.roster_id || null,
+          dialogue: item.segment.dialogue || null,
+          speaker_name: (d.cast.find(c=>c.character_id===item.segment.speaker_id)||{}).display_name || null,
+          speaker_color: (colorFor && colorFor[item.segment.speaker_id]) || null,
         })),
       };
       const r = await fetch(api("/media/video-edit/generate"), {

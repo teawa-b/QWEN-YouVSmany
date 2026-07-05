@@ -13,7 +13,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 
 const PALETTE = [0xf0997b, 0x5dcaa5, 0xd4537e, 0xefbf4f, 0x85b7eb];
-const ACCENT = 0x7b97ff;
+const ACCENT = 0x4da6ff;
 const CHAR_HEIGHT = 1.7;   // target standing height (m) for scaling the Mixamo rig
 const CHAIR_HEIGHT = 0.92; // real-ish chair height (m); seat lands ~0.46
 const HEAD_TO_CROWN_Y = 0.17;

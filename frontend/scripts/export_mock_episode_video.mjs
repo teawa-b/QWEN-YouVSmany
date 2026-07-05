@@ -84,6 +84,9 @@ async function main() {
   });
 
   await page.goto(config.url, { waitUntil: "networkidle" });
+  // The UI is a multi-screen app now; open the Start Debate screen first.
+  await page.evaluate(() => window.YVMNav?.go("debate"));
+  await page.waitForSelector("#topic", { state: "visible", timeout: 10000 });
   await page.fill("#topic", config.topic);
   await page.click("#run");
   await page.waitForSelector("#hhSegments button", { timeout: 60000 });

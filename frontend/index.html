@@ -85,6 +85,7 @@
   .pill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);
     background:var(--panel);border:1px solid var(--border);padding:7px 12px;border-radius:999px;
     white-space:nowrap;max-width:56vw;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(8px)}
+  header.top > #prov{display:none}
   .pill .dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--faint)}
   .pill.live .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
   .pill b{color:var(--text);font-weight:600}
@@ -309,6 +310,28 @@
   .report b{color:var(--text);font-weight:600}
   .report .mono{font-family:var(--mono)}
 
+  /* ---- audience episode view ---- */
+  .audience-shell{display:grid;gap:16px}
+  .episode-viewport{position:relative;overflow:hidden;border:1px solid var(--border);
+    border-radius:var(--radius);background:#02040a;box-shadow:0 28px 80px -48px rgba(0,0,0,.9)}
+  .episode-viewport:before{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+    background:linear-gradient(180deg,rgba(4,7,13,.04),transparent 24%,rgba(4,7,13,.24))}
+  .episode-viewport .s3d-shot,.episode-viewport .s3d-free,.episode-viewport .s3d-seg{display:none}
+  .episode-titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);
+    background:var(--panel);color:var(--muted);font-size:13px}
+  .episode-titlebar b{color:var(--text);font-weight:700}
+  .episode-titlebar span{white-space:nowrap}
+  .watch-note{color:var(--faint);font-size:12.5px;text-align:center}
+  .dev-details{border:1px solid var(--border-soft);border-radius:var(--radius-sm);
+    background:rgba(255,255,255,.025);overflow:hidden}
+  .dev-details summary{cursor:pointer;list-style:none;padding:12px 14px;color:var(--faint);
+    font-size:12px;text-transform:uppercase;letter-spacing:.12em;font-weight:700}
+  .dev-details summary::-webkit-details-marker{display:none}
+  .dev-details[open] summary{border-bottom:1px solid var(--border-soft);color:var(--muted)}
+  .dev-details-body{padding:14px}
+  .dev-hidden{display:none}
+
   /* ---- scene manifest ---- */
   .setcard{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--ac);
     border-radius:var(--radius-sm);padding:12px 15px;margin:4px 0 12px}
@@ -346,6 +369,7 @@
   .bdg.cap{color:var(--warn);background:rgba(255,191,92,.08);border:1px dashed rgba(255,191,92,.45)}
 
   /* ---- HappyHorse video edit flow ---- */
+  .hh-audience{margin-top:0}
   .hh{display:grid;grid-template-columns:minmax(250px,360px) 1fr;gap:18px;align-items:start;margin:8px 0 22px}
   .hh > *,.hh-flow > *{min-width:0}
   .hh-screen{position:sticky;top:12px;background:#05070c;border:1px solid var(--border);
@@ -366,6 +390,7 @@
   .hh-note.warn{color:var(--warn)}
   .hh-action{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:9px 0 10px}
   .hh-flow{display:grid;gap:12px}
+  .hh-flow.dev-only{margin-top:14px}
   .hh-step{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
   .hh-step h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
   .hh-refs{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:9px}
@@ -461,7 +486,7 @@
       <div class="hero">
         <div class="kicker">AI debate showrunner</div>
         <h1 class="hero-title">One voice <span class="vs2">VS</span> the many.</h1>
-        <p class="hero-sub">Lock the argument, lock the audio, stage the scene — a complete crossfire episode from a single proposition.</p>
+        <p class="hero-sub">Turn one proposition into a watchable debate video.</p>
       </div>
       <nav class="menu">
         <a class="mcard" href="#debate" id="card-debate" style="--ac:var(--blue)">
@@ -475,7 +500,7 @@
           </span>
           <span class="mtitle">Start<br>Debate</span>
           <span class="mdiv"></span>
-          <span class="mdesc">Brief a topic, pick your side, and run a live one-vs-many crossfire.</span>
+          <span class="mdesc">Brief a topic, pick your side, and generate the episode.</span>
           <span class="mgo">»</span>
         </a>
         <a class="mcard" href="#demo" id="card-demo" style="--ac:var(--purple)">
@@ -488,7 +513,7 @@
           </span>
           <span class="mtitle">Demo</span>
           <span class="mdiv"></span>
-          <span class="mdesc">Play a preset episode end-to-end — transcript, staging and video flow.</span>
+          <span class="mdesc">Play a preset episode as a viewer would see it.</span>
           <span class="mgo">»</span>
         </a>
         <a class="mcard" href="#settings" id="card-settings" style="--ac:var(--amber)">
@@ -501,7 +526,7 @@
           </span>
           <span class="mtitle">Settings</span>
           <span class="mdiv"></span>
-          <span class="mdesc">Backend connection, provider status and interface preferences.</span>
+          <span class="mdesc">Connection and playback preferences.</span>
           <span class="mgo">»</span>
         </a>
       </nav>
@@ -512,7 +537,7 @@
       <div class="screen-head">
         <div class="kicker">Crossfire brief</div>
         <h1>Start Debate</h1>
-        <p>One protagonist defends the claim. The room pushes back — every challenger from a different angle.</p>
+        <p>Pick a claim and generate the video episode.</p>
       </div>
       <div class="card">
         <label class="lbl" for="topic">Debate topic</label>
@@ -554,7 +579,7 @@
         </div>
 
         <div class="runbar">
-          <button class="run" id="run">Run crossfire</button>
+          <button class="run" id="run">Generate episode</button>
           <span class="hint" id="seedhint">seed 0 · deterministic</span>
           <input type="number" id="seed" value="0" min="0" style="width:90px;margin-left:auto" title="determinism seed" />
         </div>
@@ -566,7 +591,7 @@
     <section class="screen" id="screen-results" style="--ac:var(--blue)">
       <div class="screen-head row">
         <div>
-          <div class="kicker">Locked episode</div>
+          <div class="kicker">Now playing</div>
           <h1>Episode</h1>
         </div>
         <a class="ghost-btn" href="#debate">‹ Adjust brief</a>
@@ -579,7 +604,7 @@
       <div class="screen-head">
         <div class="kicker">Sample episodes</div>
         <h1>Demo</h1>
-        <p>Run a preset brief end-to-end on the deterministic provider — transcript, staging, audio timeline and the HappyHorse video flow.</p>
+        <p>Run a preset brief and watch the generated episode.</p>
       </div>
       <div class="card">
         <div class="runbar" style="margin-top:0">
@@ -596,7 +621,7 @@
       <div class="screen-head">
         <div class="kicker">Configuration</div>
         <h1>Settings</h1>
-        <p>Backend connection, provider status and interface preferences.</p>
+        <p>Connection and playback preferences.</p>
       </div>
       <div class="card">
         <label class="lbl" for="setApi">Backend API base URL</label>
@@ -626,7 +651,7 @@
 
   </main>
 
-  <footer>You Vs Many — one locked transcript, one claim under pressure.</footer>
+  <footer>You Vs Many</footer>
 </div>
 
 <script src="config.js"></script>
@@ -861,7 +886,7 @@ $("#run").onclick = runEpisode;
 function setLoading(on){
   const b=$("#run");
   b.disabled=on;
-  b.innerHTML = on ? `<span class="spin"></span>Running crossfire...` : "Run crossfire";
+  b.innerHTML = on ? `<span class="spin"></span>Generating episode...` : "Generate episode";
 }
 function showErr(m){ const e=$("#err"); e.textContent=m; e.style.display="block"; }
 function hideErr(){ $("#err").style.display="none"; }
@@ -875,6 +900,9 @@ function render(d){
     else if(c.role==="moderator") colorFor[c.character_id]=MOD;
     else colorFor[c.character_id]=PALETTE[ci++ % PALETTE.length];
   });
+  renderAudienceEpisode(d, colorFor);
+  return;
+
   const initials = n => n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
   const pct = v => Math.round((v||0)*100);
 
@@ -1077,6 +1105,89 @@ function render(d){
   go("results");
 }
 
+function renderAudienceEpisode(d, colorFor){
+  const topic = d.brief?.topic || d.topic || "Generated episode";
+  const duration = d.scene?.total_duration_s || d.duration_s || 0;
+  const player = d.scene
+    ? `<div class="episode-viewport"><div id="stage3d" class="stage3d"></div></div>`
+    : `<div class="episode-viewport"><div class="s3d-loading">Preparing episode...</div></div>`;
+  const html = `<div class="card">
+    <div class="audience-shell">
+      <div class="episode-titlebar">
+        <b>${esc(topic)}</b>
+        <span>${Math.round(duration || 0)}s episode</span>
+      </div>
+      ${player}
+      ${d.scene ? renderHappyHorseFlow() : ""}
+      <details class="dev-details dev-hidden">
+        <summary>Developer details</summary>
+        <div class="dev-details-body">${renderDeveloperDetails(d, colorFor)}</div>
+      </details>
+    </div>
+  </div>`;
+
+  const R = $("#results");
+  R.innerHTML = html;
+  R.style.display = "block";
+
+  if(window.YVM3D && d.scene){
+    window.YVM3D.show({
+      scene: d.scene,
+      cast: d.cast,
+      apiBase: API_BASE,
+      colorFor: id => parseInt(String(colorFor[id]||"#888888").slice(1),16),
+      nameFor: id => (d.cast.find(c=>c.character_id===id)||{}).display_name || id,
+    });
+  }
+  if(d.scene) mountHappyHorseFlow(d, colorFor);
+
+  lastEpisode = d;
+  go("results");
+}
+
+function renderDeveloperDetails(d, colorFor){
+  const m = d.metrics||{};
+  const rr = d.run_report||{};
+  const pct = v => Math.round((v||0)*100);
+  const out = [];
+  out.push(`<div class="statusrow">
+    <span class="badge state">${esc(d.state||"episode")}</span>
+    <span class="badge ${d.approved?'ok':'no'}">${d.approved?'approved':'not approved'}</span>
+    <span class="badge mono">${esc(d.episode_id||"")}</span>
+  </div>`);
+  out.push(`<div class="metrics">
+    ${metric("Contention uniqueness", pct(m.contention_uniqueness)+"%", m.contention_uniqueness)}
+    ${metric("Repetition", pct(m.repetition)+"%", m.repetition, true)}
+    ${metric("Persona adherence", pct(m.persona_adherence)+"%", m.persona_adherence)}
+    ${metricPlain("Distinct speakers", m.distinct_speakers ?? d.cast.length)}
+  </div>`);
+  out.push(`<h2 class="sec">Cast</h2><div class="cast">`);
+  d.cast.forEach(c=>{
+    out.push(`<div class="pc" style="--c:${colorFor[c.character_id]||MOD}">
+      <div class="role">${esc(c.role)}${c.stance?` / ${esc(c.stance)}`:""}</div>
+      <div class="nm">${esc(c.display_name)}</div>
+      <span class="ct">${esc(c.contention_tag||"")}</span>
+    </div>`);
+  });
+  out.push(`</div>`);
+  if(d.scene){
+    const sc = d.scene;
+    out.push(`<h2 class="sec">Scene data</h2><div class="report">
+      <span>segments <b>${sc.segments?.length||0}</b></span>
+      <span>audio cues <b>${sc.audio?.length||0}</b></span>
+      <span>TTS voices <b>${Object.keys(sc.voice_map||{}).length}</b></span>
+      <span>crop safe <b>${sc.crop_safe_9x16?"yes":"no"}</b></span>
+    </div>`);
+  }
+  out.push(`<h2 class="sec">Run report</h2><div class="report">
+    <span>provider <b>${esc(rr.provider||"?")}</b></span>
+    <span>model <b class="mono">${esc(rr.model||"?")}</b></span>
+    <span>LLM calls <b>${rr.llm_calls??"-"}</b></span>
+    <span>tokens <b>${(rr.input_tokens||0)} in / ${(rr.output_tokens||0)} out</b></span>
+  </div>`);
+  return out.join("");
+}
+
 const HH_REF_BASE = "/assets/reference/vertical-v1/";
 const HH_REAL_BASE = "/assets/reference/realistic-v1/";
 const HH_MODEL = "happyhorse-1.0-video-edit";
@@ -1089,19 +1200,30 @@ const HH_CHAR_BASE = "/assets/reference/characters-v1/";
 const HH_SLOTS = ["second_speaker","third_speaker","fourth_speaker"];
 
 function renderHappyHorseFlow(){
-  return `<h2 class="sec">HappyHorse video edit flow</h2>
-    <div class="hh" id="happyHorseFlow">
+  return `<div class="hh hh-audience" id="happyHorseFlow">
       <div class="hh-screen">
         <video id="hhVideo" muted playsinline controls></video>
-        <div class="hh-overlay" id="hhOverlay"><b>Runtime video flow</b><br>Run the mock video conversation to preview the HappyHorse edit sequence.</div>
+        <div class="hh-overlay" id="hhOverlay"><b>Episode video</b><br>Watch the generated conversation here.</div>
         <div class="hh-controls">
-          <button class="hh-btn primary" id="hhPlay">Play mock video conversation</button>
+          <button class="hh-btn primary" id="hhPlay">Play episode preview</button>
+          <button class="hh-btn" id="hhGenerateVideo" hidden>Render final video</button>
+          <button class="hh-btn" id="hhPlayLive" hidden>Play final video</button>
+          <button class="hh-btn" id="hhGenerateShort" hidden>Make short</button>
+          <button class="hh-btn" id="hhPlayShort" hidden>Play short</button>
           <button class="hh-btn" id="hhRestart">Restart</button>
         </div>
       </div>
-      <div class="hh-flow">
+      <div>
+        <div class="watch-note" id="hhVideoStatus">Preparing video options...</div>
+        <div class="watch-note" id="hhShortStatus">Preparing short options...</div>
+        <div class="watch-note" id="hhVideoJobStatus"></div>
+        <div class="watch-note" id="hhShortJobStatus"></div>
+      </div>
+      <details class="dev-details dev-hidden">
+        <summary>Video pipeline details</summary>
+        <div class="hh-flow dev-only">
         <div class="hh-step">
-          <h3>1. Runtime HD images</h3>
+          <h3>Runtime HD images</h3>
           <div class="hh-note warn" id="hhAssetStatus">Checking Qwen realistic reference bank...</div>
           <div class="hh-action">
             <button class="hh-btn" id="hhGenerateRefs" hidden>Generate realistic refs on backend</button>
@@ -1110,32 +1232,19 @@ function renderHappyHorseFlow(){
           <div class="hh-refs" id="hhRefs"></div>
         </div>
         <div class="hh-step">
-          <h3>2. HappyHorse edit payload</h3>
+          <h3>HappyHorse edit payload</h3>
           <pre class="hh-payload" id="hhPayload">{}</pre>
         </div>
         <div class="hh-step">
-          <h3>3. Full conversation video segments</h3>
+          <h3>Conversation video segments</h3>
           <div class="hh-segments" id="hhSegments"></div>
         </div>
         <div class="hh-step">
-          <h3>4. Live HappyHorse generation</h3>
-          <div class="hh-note" id="hhVideoStatus">Checking backend video capability...</div>
-          <div class="hh-action">
-            <button class="hh-btn primary" id="hhGenerateVideo" hidden>Generate live video (Qwen HappyHorse)</button>
-            <button class="hh-btn" id="hhPlayLive" hidden>Play generated conversation</button>
-            <span class="hh-note" id="hhVideoJobStatus"></span>
-          </div>
+          <h3>Reference generation</h3>
+          <p class="hh-note">Reference, payload and segment information is hidden from the audience view.</p>
         </div>
-        <div class="hh-step">
-          <h3>5. Realistic highlight short (wan2.6, lipsynced)</h3>
-          <div class="hh-note" id="hhShortStatus">Checking backend short capability...</div>
-          <div class="hh-action">
-            <button class="hh-btn primary" id="hhGenerateShort" hidden>Make realistic short (hero moments)</button>
-            <button class="hh-btn" id="hhPlayShort" hidden>Play short</button>
-            <span class="hh-note" id="hhShortJobStatus"></span>
-          </div>
         </div>
-      </div>
+      </details>
     </div>`;
 }
 
@@ -1306,12 +1415,12 @@ async function pollVideoJob(jobId, statusEl){
     const job = await r.json();
     if(!r.ok) throw new Error(job.detail || `Job status failed (${r.status})`);
     statusEl.textContent = job.total
-      ? `Editing segment ${job.current}/${job.total}${job.failed ? ` (${job.failed} failed)` : ""} — HappyHorse tasks take 1-5 min each...`
+      ? `Rendering scene ${job.current}/${job.total}${job.failed ? ` (${job.failed} failed)` : ""}...`
       : `Video generation ${job.status}`;
     if(job.status==="succeeded" || job.status==="partial"){
       statusEl.textContent = job.status==="partial"
         ? `Generated with ${job.failed || "some"} failed segments — playing what finished.`
-        : "Live conversation video generated.";
+        : "Final episode video generated.";
       return job;
     }
     if(job.status==="failed") throw new Error(job.error || "backend video job failed");
@@ -1391,7 +1500,7 @@ async function mountHappyHorseFlow(d, colorFor){
     const item = segments[current], s = item.segment;
     document.querySelectorAll(".hh-seg").forEach((b, ix)=>b.classList.toggle("on", ix===current));
     video.src = HH_REF_BASE + item.ref.clip;
-    overlay.innerHTML = `<b>${esc(nameOf(s.speaker_id))}</b> · ${esc(item.ref.angle)} · ${esc(s.camera?.shot || "")}<br>${esc(s.dialogue)}`;
+    overlay.innerHTML = `<b>${esc(nameOf(s.speaker_id))}</b><br>${esc(s.dialogue)}`;
     payload.textContent = JSON.stringify(item.payload, null, 2);
     if(play){
       const start = ()=>video.play().catch(()=>{});
@@ -1401,7 +1510,7 @@ async function mountHappyHorseFlow(d, colorFor){
         if(autoplay && current < segments.length-1) select(current+1, true);
         else {
           autoplay = false;
-          $("#hhPlay").textContent = "Replay mock video conversation";
+          $("#hhPlay").textContent = "Replay episode preview";
         }
       }, 2300);
     }
@@ -1409,19 +1518,19 @@ async function mountHappyHorseFlow(d, colorFor){
   document.querySelectorAll(".hh-seg").forEach(btn=>btn.onclick=()=>select(parseInt(btn.dataset.i,10), true));
   $("#hhPlay").onclick = ()=>{
     autoplay = true;
-    $("#hhPlay").textContent = "Playing mock video conversation";
+    $("#hhPlay").textContent = "Playing episode preview";
     select(current, true);
   };
   $("#hhRestart").onclick = ()=>{
     autoplay = false;
-    $("#hhPlay").textContent = "Play mock video conversation";
+    $("#hhPlay").textContent = "Play episode preview";
     select(0, false);
   };
   video.onended = ()=>{
     if(autoplay && current < segments.length-1) select(current+1, true);
     else {
       autoplay = false;
-      $("#hhPlay").textContent = current >= segments.length-1 ? "Replay mock video conversation" : "Play mock video conversation";
+      $("#hhPlay").textContent = current >= segments.length-1 ? "Replay episode preview" : "Play episode preview";
     }
   };
   select(0, false);
@@ -1440,10 +1549,7 @@ async function mountShortStep(d, els, colorFor){
     if(r.ok) ss = await r.json();
   }catch{}
   if(!ss){
-    statusEl.textContent = API_BASE
-      ? "Backend shorts endpoint not available yet (deploy in progress?)."
-      : "Connect a backend (YVM_API_BASE) to generate realistic shorts.";
-    statusEl.classList.add("warn");
+    statusEl.hidden = true;
     return;
   }
   const heroes = (d.scene?.segments || [])
@@ -1451,17 +1557,18 @@ async function mountShortStep(d, els, colorFor){
     .slice(0, ss.segment_cap || 3);
   const ready = ss.video_ready && ss.ffmpeg && heroes.length;
   statusEl.classList.toggle("warn", !ready);
+  statusEl.hidden = !ready && !ss.short;
   statusEl.textContent = ready
-    ? `Backend ready: ${ss.model} @ ${ss.resolution}, ${heroes.length} hero moment${heroes.length>1?"s":""} selected (cap ${ss.segment_cap}). ${ss.short ? "A generated short already exists." : ""}`
+    ? (ss.short ? "A short is ready to play." : `${heroes.length} highlight moment${heroes.length>1?"s":""} ready for a short.`)
     : !ss.video_ready
-      ? "Backend has no Qwen/DashScope key configured."
+      ? "Short rendering is not connected."
       : !ss.ffmpeg
-        ? "Backend is missing ffmpeg."
+        ? "Short rendering is not ready."
         : "No hero segments with roster identity + TTS audio in this episode.";
   const playShort = ()=>{
     els.video.src = api("/media/video-edit/files/" + (ss.short || "shorts/short.mp4")) + "?t=" + Date.now();
     els.video.muted = false;
-    els.overlay.innerHTML = "<b>Realistic highlight short</b><br>Hero moments, wan2.6 audio-driven lipsync.";
+    els.overlay.innerHTML = "<b>Highlight short</b><br>Hero moments from this episode.";
     els.video.play().catch(()=>{});
   };
   playBtn.hidden = !ss.short;
@@ -1469,7 +1576,7 @@ async function mountShortStep(d, els, colorFor){
   genBtn.hidden = !ready;
   genBtn.onclick = async ()=>{
     genBtn.disabled = true;
-    jobStatus.textContent = "Queueing wan2.6 hero clips...";
+    jobStatus.textContent = "Making the short...";
     try{
       const body = {
         background: true,
@@ -1494,7 +1601,7 @@ async function mountShortStep(d, els, colorFor){
         const job = await jr.json();
         if(!jr.ok) throw new Error(job.detail || `Job status failed (${jr.status})`);
         jobStatus.textContent = job.total
-          ? `Generating hero clip ${job.current}/${job.total}${job.failed ? ` (${job.failed} failed)` : ""} — wan2.6 tasks take 1-5 min each...`
+          ? `Making clip ${job.current}/${job.total}${job.failed ? ` (${job.failed} failed)` : ""}...`
           : `Short generation ${job.status}`;
         if(job.status==="succeeded" || job.status==="partial"){
           jobStatus.textContent = job.status==="partial"
@@ -1520,23 +1627,21 @@ async function mountLiveVideoStep(d, segments, els, colorFor){
   if(!statusEl) return;
   const vs = await loadVideoEditStatus();
   if(!vs){
-    statusEl.textContent = API_BASE
-      ? "Backend video-edit endpoint not available yet (deploy in progress?)."
-      : "Connect a backend (YVM_API_BASE) to generate live HappyHorse video.";
-    statusEl.classList.add("warn");
+    statusEl.hidden = true;
     return;
   }
   const ready = vs.video_ready && vs.ffmpeg;
   statusEl.classList.toggle("warn", !ready);
+  statusEl.hidden = !ready && !vs.conversation;
   statusEl.textContent = ready
-    ? `Backend ready: ${vs.model} + ffmpeg stitching. ${vs.conversation ? "A generated conversation video already exists." : ""}`
+    ? (vs.conversation ? "A final episode video is ready to play." : "Final video rendering is ready.")
     : !vs.video_ready
-      ? "Backend has no Qwen/DashScope key configured for video generation."
-      : "Backend is missing ffmpeg — segment videos can generate but won't be stitched.";
+      ? "Final video rendering is not connected."
+      : "Final video rendering is not ready.";
   const playLive = ()=>{
     els.video.src = api("/media/video-edit/files/" + vs.conversation) + "?t=" + Date.now();
     els.video.muted = false;
-    els.overlay.innerHTML = "<b>Live HappyHorse conversation</b><br>Stitched from Qwen video-edit segments.";
+    els.overlay.innerHTML = "<b>Final episode video</b><br>Rendered conversation.";
     els.video.play().catch(()=>{});
   };
   playBtn.hidden = !vs.conversation;
@@ -1544,7 +1649,7 @@ async function mountLiveVideoStep(d, segments, els, colorFor){
   genBtn.hidden = !vs.video_ready;
   genBtn.onclick = async ()=>{
     genBtn.disabled = true;
-    jobStatus.textContent = "Queueing HappyHorse segment tasks...";
+    jobStatus.textContent = "Rendering the episode video...";
     try{
       const body = {
         background: true,

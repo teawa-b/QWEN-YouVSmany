@@ -20,6 +20,16 @@ This browser check mounts the Three.js player from a scene manifest, verifies
 that the premade GLB studio set loaded, checks the 9:16 crop area, and confirms
 that the local realistic reference bank is served with valid media MIME types.
 
+## Package Episode
+
+```bash
+npm run package:episode -- --url=http://127.0.0.1:5173 --api=http://127.0.0.1:8000
+```
+
+This creates `output/submission/latest` with the locked episode JSON, scene
+manifest, base edit, segment clips, hero stills, short candidates, and a local
+review page.
+
 ## Backend API URL
 
 By default, local/file usage calls `http://127.0.0.1:8000`.

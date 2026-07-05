@@ -72,10 +72,20 @@ For local development with the backend on port 8000:
 
 ```bash
 cd frontend
-python -m http.server 5173
+npm start
 ```
 
 Open `http://127.0.0.1:5173`.
+
+To create a reviewable deliverable bundle from a running backend/frontend:
+
+```bash
+cd frontend
+npm run package:episode -- --url=http://127.0.0.1:5173 --api=http://127.0.0.1:8000
+```
+
+The package writes episode JSON, scene manifests, base edit, per-segment clips,
+hero stills, short candidates, and a review page under `output/submission/`.
 
 For separate hosting, point the frontend at the backend API with one of:
 
@@ -149,9 +159,9 @@ Check `GET /health`; CosyVoice is available when it reports
 
 ## Roadmap
 
-Phase 2 is nearly complete. The remaining core item is the final capture/export
-pass for a full base edit, per-segment clips, and hero stills. Later phases are
-continuity/shorts packaging, integration evaluation, and submission freeze.
+The app now has the full debate -> staging -> reference bank -> HappyHorse
+payload -> capture/package path. Remaining production work is mostly asset
+replacement and live hosted generation runs, not missing application plumbing.
 
 ## License
 

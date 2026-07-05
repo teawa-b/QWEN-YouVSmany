@@ -16,20 +16,20 @@ criterion is met.
 
 ## Phase Status
 
-**8 phases total (Phase 0 -> Phase 7). 2 complete, currently in Phase 2 -> 5 phases remain after this one.**
+**8 phases total (Phase 0 -> Phase 7). Implementation plumbing is complete through Phase 7.**
 
 | Phase | Name | Target dates | Status |
 |------:|------|--------------|--------|
 | 0 | Foundation & scope lock | 24 Jun | Done |
 | 1 | Debate intelligence | 25-27 Jun | Done |
-| 2 | Audio, stage & capture | 28-30 Jun | In progress |
-| 3 | Still conversion & identity | 1-2 Jul | Not started |
-| 4 | Video transformation A/B | 2-4 Jul | Not started |
-| 5 | Continuity loop & shorts | 4-6 Jul | Not started |
-| 6 | Integration & evaluation | 6-7 Jul | Not started |
-| 7 | Submission assets & code freeze | 7-8 Jul | Not started |
+| 2 | Audio, stage & capture | 28-30 Jun | Done |
+| 3 | Still conversion & identity | 1-2 Jul | Done |
+| 4 | Video transformation A/B | 2-4 Jul | Done |
+| 5 | Continuity loop & shorts | 4-6 Jul | Done |
+| 6 | Integration & evaluation | 6-7 Jul | Done |
+| 7 | Submission assets & code freeze | 7-8 Jul | Done |
 
-## Phase 2 - Audio, Stage & Capture (Current)
+## Phase 2 - Audio, Stage & Capture
 
 **Objective:** a publishable base episode (Three.js + real TTS audio) before
 relying on generative video. Exit criterion: a complete base 3D episode that
@@ -100,11 +100,58 @@ Sub-tasks:
       are attached to a Web Audio analyser when available; the active speaker's
       talk animation, jaw/head motion and subtle body pulse follow the live
       audio envelope, with a synthetic fallback for browser speech playback.
-- [ ] **Capture**: full base edit, per-segment shot clips, hero stills.
+- [x] **Capture**: `npm run package:episode` creates a full deliverable bundle
+      from a locked episode: base edit WebM, per-segment shot clips, hero
+      stills, short candidates, episode JSON, scene manifest, metrics, package
+      manifest, and a local review page.
 - [x] **Visual QA tests**: `npm run visual:qa` mounts the manifest-driven
       Three.js player in a browser, verifies the studio `.glb` loaded, checks a
       nonblank 9:16-safe canvas, validates the local realistic bank, and writes
       a screenshot under `output/playwright/`.
+
+## Phase 3 - Still Conversion & Identity
+
+- [x] Qwen Image Edit Max realistic-reference generation is wired on the
+      backend and can be run safely as resumable background jobs.
+- [x] The generated realistic reference bank is persisted into
+      `frontend/assets/reference/realistic-v1/` so redeploys do not wipe
+      identity assets.
+- [x] The frontend prefers the local realistic bank and falls back to starter
+      frames or backend refs when needed.
+
+## Phase 4 - Video Transformation
+
+- [x] HappyHorse (`happyhorse-1.0-video-edit`) is the selected live Qwen Cloud
+      route after the Wan/HappyHorse comparison work.
+- [x] Backend video jobs convert WebM sources to MP4, build public media URLs,
+      submit async DashScope tasks, poll, download, mux available audio, and
+      stitch a conversation file with ffmpeg.
+- [x] The frontend exposes live generation controls when the backend reports a
+      configured Qwen key and ffmpeg.
+
+## Phase 5 - Continuity Loop & Shorts
+
+- [x] Segment identity is anchored by speaker-slot close references; missing
+      realistic shots gracefully fall back to starter frames.
+- [x] Package export emits short candidate clips from highlight windows and
+      records the source segment ids in `package_manifest.json`.
+
+## Phase 6 - Integration & Evaluation
+
+- [x] Backend test suite covers state machine, schemas, scene contract, media
+      reference generation, and video-edit flow.
+- [x] Browser visual QA checks 3D stage load, crop safety, realistic-bank
+      availability, and media MIME types.
+- [x] Package smoke run verifies locked episode generation, capture outputs,
+      manifests, and the review page path.
+
+## Phase 7 - Submission Assets & Code Freeze
+
+- [x] `docs/submission-package.md` documents the final packaging workflow.
+- [x] `npm run package:episode` writes submission-ready local artifacts under
+      `output/submission/`.
+- [x] README files now describe the current late-stage pipeline rather than the
+      older Phase 1-only state.
 
 ## What's Done (Phase 1 Recap)
 

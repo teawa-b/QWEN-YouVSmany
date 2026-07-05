@@ -79,7 +79,10 @@ def test_dry_run_builds_public_media_urls(tmp_path, monkeypatch):
         "main_speaker/protagonist/close/clip.mp4"
     )
     assert media[1]["type"] == "reference_image"
-    assert media[1]["url"].startswith("https://api.example.com/media/reference/files/")
+    assert media[1]["url"] in {
+        "https://api.example.com/media/reference/files/main_speaker/protagonist/close/starter.png",
+        "https://api.example.com/media/realistic-refs/files/main_speaker/protagonist/close/realistic.png",
+    }
     assert (tmp_path / "videos" / "manifest.json").exists()
 
 

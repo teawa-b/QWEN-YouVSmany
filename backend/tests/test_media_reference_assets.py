@@ -35,6 +35,39 @@ def test_dry_run_realistic_ref_manifest_does_not_need_key(tmp_path):
     assert (tmp_path / "realistic-v1" / "manifest.json").exists()
 
 
+def test_packaged_realistic_bank_seeds_runtime_dir(tmp_path, monkeypatch):
+    packaged = tmp_path / "packaged"
+    image = packaged / "main_speaker" / "protagonist" / "close" / "realistic.png"
+    image.parent.mkdir(parents=True)
+    image.write_bytes(b"png")
+    (packaged / "manifest.json").write_text(
+        """
+        {
+          "dry_run": false,
+          "shots": [
+            {
+              "starter": "main_speaker/protagonist/close/starter.png",
+              "realistic": "main_speaker/protagonist/close/realistic.png",
+              "status": "existing"
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("YVM_PACKAGED_REALISTIC_REF_DIR", str(packaged))
+    settings = Settings(qwen_dashscope_api_key="", realistic_ref_dir=str(tmp_path / "runtime"))
+
+    seeded = reference_assets.ensure_realistic_bank(settings)
+    status = reference_assets.status(settings)
+
+    assert seeded == tmp_path / "runtime"
+    assert (tmp_path / "runtime" / "manifest.json").exists()
+    assert (tmp_path / "runtime" / "main_speaker" / "protagonist" / "close" / "realistic.png").exists()
+    assert status["available"] is True
+    assert status["generated_count"] == 1
+
+
 def test_close_identity_shots_are_generated_before_other_angles():
     plan = reference_assets.build_plan()
 

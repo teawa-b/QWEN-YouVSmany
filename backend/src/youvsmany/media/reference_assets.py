@@ -28,6 +28,7 @@ import base64
 import json
 import os
 import random
+import shutil
 import time
 import uuid
 from pathlib import Path
@@ -121,6 +122,13 @@ def source_ref_dir() -> Path:
     return repo_root() / "frontend" / "assets" / "reference" / "vertical-v1"
 
 
+def packaged_realistic_ref_dir() -> Path:
+    configured = os.getenv("YVM_PACKAGED_REALISTIC_REF_DIR")
+    if configured:
+        return Path(configured)
+    return repo_root() / "frontend" / "assets" / "reference" / "realistic-v1"
+
+
 def realistic_ref_dir(settings: Settings) -> Path:
     return Path(settings.realistic_ref_dir)
 
@@ -138,10 +146,33 @@ def source_manifest() -> dict[str, Any]:
 
 
 def existing_manifest(settings: Settings) -> dict[str, Any] | None:
+    ensure_realistic_bank(settings)
     file = manifest_path(settings)
     if not file.exists():
         return None
     return read_json(file)
+
+
+def ensure_realistic_bank(settings: Settings) -> Path | None:
+    """Seed the served runtime bank from the packaged frontend bank.
+
+    Railway's filesystem is ephemeral, so generated files under ``runs/`` vanish
+    on redeploy. The repo now carries a persisted realistic bank in
+    ``frontend/assets/reference/realistic-v1``; copy it into the mounted media
+    directory when the runtime directory has no manifest yet. Live generation can
+    still overwrite/fill the runtime directory later.
+    """
+    out_dir = realistic_ref_dir(settings)
+    out_manifest = out_dir / "manifest.json"
+    if out_manifest.exists():
+        return out_dir
+    packaged_dir = packaged_realistic_ref_dir()
+    packaged_manifest = packaged_dir / "manifest.json"
+    if not packaged_manifest.exists():
+        return None
+    out_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(packaged_dir, out_dir, dirs_exist_ok=True)
+    return out_dir
 
 
 def path_ref(from_dir: Path, to_path: Path) -> str:

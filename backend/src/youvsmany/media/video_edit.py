@@ -39,6 +39,7 @@ from youvsmany.config import Settings
 from youvsmany.media.reference_assets import (
     QwenRequestError,
     RETRYABLE_CODES,
+    ensure_realistic_bank,
     repo_root,
     source_ref_dir,
 )
@@ -279,6 +280,7 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
 
 
 def load_realistic_manifest(settings: Settings) -> dict[str, Any] | None:
+    ensure_realistic_bank(settings)
     file = Path(settings.realistic_ref_dir) / "manifest.json"
     if not file.exists():
         return None

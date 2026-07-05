@@ -48,7 +48,9 @@ _audio_dir = get_settings().audio_dir
 os.makedirs(_audio_dir, exist_ok=True)
 app.mount("/audio", StaticFiles(directory=_audio_dir), name="audio")
 
-_realistic_ref_dir = get_settings().realistic_ref_dir
+_settings = get_settings()
+reference_assets.ensure_realistic_bank(_settings)
+_realistic_ref_dir = _settings.realistic_ref_dir
 os.makedirs(_realistic_ref_dir, exist_ok=True)
 app.mount(
     "/media/realistic-refs/files",

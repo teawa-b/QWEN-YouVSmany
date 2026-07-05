@@ -1,7 +1,7 @@
 [project]
 name = "youvsmany"
 version = "0.1.0"
-description = "You Vs Many — AI Debate Showrunner. Phase 1: multi-agent debate intelligence."
+description = "You Vs Many - AI Debate Showrunner vertical slice."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

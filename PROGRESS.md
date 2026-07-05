@@ -152,6 +152,9 @@ Sub-tasks:
       `output/submission/`.
 - [x] README files now describe the current late-stage pipeline rather than the
       older Phase 1-only state.
+- [x] Live Railway verification completed: `/health`, realistic refs, episode
+      generation, HappyHorse segment generation, ffmpeg stitching, and
+      `conversation.mp4` serving all pass against the hosted backend.
 
 ## What's Done (Phase 1 Recap)
 

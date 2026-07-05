@@ -1,13 +1,13 @@
-"""FastAPI orchestrator — Phase 1 subset of the API surface (blueprint Appendix A).
+"""FastAPI orchestrator for debate episodes and media generation.
 
-Implements the text-stage endpoints:
+Implements the episode endpoints:
   POST /episodes              create brief + run safety gate
   POST /episodes/{id}/prepare generate cast, private notes, round plan
   POST /episodes/{id}/debate  run/advance the state machine
   POST /episodes/{id}/lock    detect highlights, approve
   GET  /episodes/{id}         current status, summary and outputs
 
-Media endpoints (captures/images/videos/package) belong to later phases.
+Also exposes realistic-reference and HappyHorse video-edit media endpoints.
 """
 
 from __future__ import annotations

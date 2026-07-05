@@ -1,9 +1,10 @@
 # You Vs Many - AI Debate Showrunner
 
 You Vs Many is a multi-agent debate pipeline for one-person-vs-many formats. The
-current implementation is late Phase 2: debate intelligence plus an audio-locked
-Three.js scene player, Qwen Cloud CosyVoice support, a persisted realistic
-reference-image bank, and live HappyHorse video-edit endpoints.
+current implementation is a complete vertical slice: debate intelligence, an
+audio-locked Three.js scene player, Qwen Cloud CosyVoice support, a persisted
+realistic reference-image bank, live HappyHorse video-edit endpoints, and a
+submission packaging workflow.
 
 The repo is split so the API and UI can be hosted separately:
 
@@ -157,11 +158,12 @@ QWEN_WS_URL=wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference
 Check `GET /health`; CosyVoice is available when it reports
 `"tts_provider":"qwen"` and `"tts_ready":true`.
 
-## Roadmap
+## Status
 
 The app now has the full debate -> staging -> reference bank -> HappyHorse
-payload -> capture/package path. Remaining production work is mostly asset
-replacement and live hosted generation runs, not missing application plumbing.
+payload -> capture/package path. Implementation plumbing is complete through
+the Phase 7 submission/code-freeze milestone in `PROGRESS.md`; remaining work is
+polish, asset swaps, and content iteration rather than missing app flow.
 
 ## License
 

@@ -18,7 +18,7 @@ from youvsmany.store import EpisodeStore
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="You Vs Many — Phase 1 debate runner")
+    p = argparse.ArgumentParser(description="You Vs Many debate runner")
     p.add_argument("--topic", default="Pineapple belongs on pizza")
     p.add_argument("--stance", choices=[s.value for s in Stance], default="for")
     p.add_argument("--duration", type=int, default=90)

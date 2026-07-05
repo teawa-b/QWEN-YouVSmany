@@ -37,6 +37,7 @@ from typing import Any
 import httpx
 
 from youvsmany.config import Settings
+from youvsmany.media.studio import STUDIO_SCENE
 
 
 SPEAKER_PROFILES: dict[str, dict[str, Any]] = {
@@ -229,10 +230,14 @@ def prompt_for(shot: dict[str, Any]) -> str:
             identity_line,
             "Create a realistic 9:16 cinematic live-action frame for a premium televised debate show.",
             f"Subject: {profile['description']}.",
+            # The environment line is identical across every prompt in the
+            # pipeline (see media/studio.py) so all shots and all characters
+            # land in the same room.
+            f"Environment: {STUDIO_SCENE}.",
             f"Camera: {shot_text}.",
             "Preserve the same speaker position, body orientation, table placement, lighting direction and camera perspective from the source reference.",
             "Keep this speaker visually consistent across every image: same facial features, hairstyle, outfit colors and overall identity.",
-            "Style: photorealistic broadcast photography, natural lighting, realistic fabric and materials, polished studio set, gentle depth of field.",
+            "Style: photorealistic broadcast photography, natural lighting, realistic fabric and materials, gentle depth of field.",
             "No captions, no subtitles, no lower thirds, no text, no logos, no watermark.",
         ]
     )
@@ -243,11 +248,13 @@ def fallback_prompt_for(shot: dict[str, Any]) -> str:
     if shot.get("group") == "intro":
         return (
             "Turn this image into a realistic photo of the same television debate studio. "
+            f"Setting: {STUDIO_SCENE}. "
             "Keep the same composition, seating layout, table and camera angle. "
             "Vertical 9:16 framing. No text or logos."
         )
     return (
         "Turn this into a realistic photo of a professional television debate speaker. "
+        f"Setting: {STUDIO_SCENE}. "
         "Keep the same pose, seat position, outfit colors and camera angle as the reference images. "
         "Vertical 9:16 framing. No text or logos."
     )

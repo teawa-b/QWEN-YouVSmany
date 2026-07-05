@@ -61,6 +61,11 @@ class Settings:
     realistic_ref_dir: str = os.getenv(
         "YVM_REALISTIC_REF_DIR", "runs/media/reference/realistic-v1"
     )
+    # Persistent reusable character identity bank (generated once, reused by
+    # every episode instead of regenerating identities per run).
+    character_bank_dir: str = os.getenv(
+        "YVM_CHARACTER_BANK_DIR", "runs/media/reference/characters-v1"
+    )
     # MP4 conversions of the starter WebM clips (HappyHorse rejects WebM).
     reference_mp4_dir: str = os.getenv("YVM_REFERENCE_MP4_DIR", "runs/media/reference-mp4")
     # Generated HappyHorse segment videos + stitched conversation.

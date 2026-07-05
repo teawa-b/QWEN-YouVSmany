@@ -8,6 +8,7 @@
     "capture:refs": "node scripts/capture_reference_assets.mjs",
     "generate:realistic-refs": "node scripts/generate_realistic_references.mjs",
     "pull:realistic-refs": "node scripts/pull_realistic_bank.mjs",
+    "pull:character-bank": "node scripts/pull_character_bank.mjs",
     "generate:happyhorse-video": "node scripts/run_happyhorse_video_edit.mjs",
     "export:mock-video": "node scripts/export_mock_episode_video.mjs",
     "package:episode": "node scripts/package_episode.mjs",

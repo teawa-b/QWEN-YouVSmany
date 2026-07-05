@@ -118,6 +118,17 @@ Sub-tasks:
       identity assets.
 - [x] The frontend prefers the local realistic bank and falls back to starter
       frames or backend refs when needed.
+- [x] **Canonical studio scene**: every image/video prompt embeds the same
+      studio-room description (`media/studio.py`, mirrored in `index.html`
+      with a sync test), so all characters and shots render in the same room.
+- [x] **Persistent character roster**: 12 varied reusable panelists with
+      stable seeds (`media/characters.py`). The stage director casts them
+      deterministically per episode (`scene.character_refs`, gender-matched,
+      seed-varied); identity images generate once via
+      `POST /media/character-bank/generate` into a bank that ships in the repo
+      (`characters-v1/`), so episodes reuse saved identities instead of
+      generating new characters per run. Video-edit tasks anchor the face to
+      the roster identity image when the bank exists.
 
 ## Phase 4 - Video Transformation
 

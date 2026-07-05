@@ -29,7 +29,7 @@ from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
 from youvsmany.contracts.brief import ShowBrief
 from youvsmany.evals.metrics import score_episode
-from youvsmany.media import reference_assets, video_edit
+from youvsmany.media import characters, reference_assets, video_edit
 from youvsmany.store import EpisodeStore
 
 app = FastAPI(title="You Vs Many — Debate Intelligence", version="0.1.0")
@@ -56,6 +56,16 @@ app.mount(
     "/media/realistic-refs/files",
     StaticFiles(directory=_realistic_ref_dir),
     name="realistic-refs",
+)
+
+# Persistent reusable character identity bank (generated once, reused per run).
+characters.ensure_character_bank(_settings)
+_character_bank_dir = _settings.character_bank_dir
+os.makedirs(_character_bank_dir, exist_ok=True)
+app.mount(
+    "/media/character-bank/files",
+    StaticFiles(directory=_character_bank_dir),
+    name="character-bank",
 )
 
 # HappyHorse video edit needs DashScope-fetchable public URLs for the starter
@@ -140,6 +150,10 @@ class VideoEditSegment(BaseModel):
     identity: str | None = Field(default=None, description="Identity starter frame path")
     starter: str | None = Field(default=None, description="Pose starter frame path")
     audio: str | None = Field(default=None, description="TTS clip URL to mux, if any")
+    character: str | None = Field(
+        default=None,
+        description="Persistent roster character id whose bank identity image anchors the face",
+    )
 
 
 class VideoEditGenerateBody(BaseModel):
@@ -245,6 +259,67 @@ async def generate_realistic_refs(body: RealisticRefsGenerateBody) -> dict:
 @app.get("/media/realistic-refs/jobs/{job_id}")
 def realistic_refs_job(job_id: str) -> dict:
     job = reference_assets.JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    return job
+
+
+class CharacterBankGenerateBody(BaseModel):
+    dry_run: bool = False
+    limit: int = Field(default=0, ge=0, description="0 generates the whole roster")
+    overwrite: bool = False
+    background: bool = True
+    size: str = "1080*1920"
+
+
+@app.get("/media/character-bank/status")
+def character_bank_status() -> dict:
+    return characters.status(get_settings())
+
+
+@app.get("/media/character-bank/manifest.json")
+def character_bank_manifest():
+    file = characters.manifest_path(get_settings())
+    if not file.exists():
+        raise HTTPException(status_code=404, detail="character bank manifest not generated")
+    return FileResponse(file, media_type="application/json")
+
+
+@app.post("/media/character-bank/generate")
+async def generate_character_bank(body: CharacterBankGenerateBody) -> dict:
+    settings = get_settings()
+    if not body.dry_run and not settings.qwen_dashscope_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Qwen/DashScope key is not configured on this backend",
+        )
+
+    kwargs = {
+        "dry_run": body.dry_run,
+        "limit": body.limit,
+        "overwrite": body.overwrite,
+        "size": body.size,
+    }
+    if body.background:
+        job = characters.create_job()
+        asyncio.create_task(characters.run_job(job["job_id"], settings, **kwargs))
+        return {"status": "queued", "job": job}
+
+    try:
+        manifest = await characters.generate(settings, **kwargs)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return {
+        "status": "succeeded",
+        "characters": len(manifest.get("characters", [])),
+        "manifest_url": "/media/character-bank/manifest.json",
+        "files_url": "/media/character-bank/files/",
+    }
+
+
+@app.get("/media/character-bank/jobs/{job_id}")
+def character_bank_job(job_id: str) -> dict:
+    job = characters.JOBS.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
     return job

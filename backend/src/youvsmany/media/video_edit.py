@@ -134,11 +134,31 @@ def build_media(
     base_url: str,
     segment: dict[str, Any],
     realistic_manifest: dict[str, Any] | None,
+    character_manifest: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
-    """Media list for one HappyHorse task: source MP4 + identity reference(s)."""
+    """Media list for one HappyHorse task: source MP4 + identity reference(s).
+
+    Identity resolution order (first reference image wins the face):
+    1. the segment's persistent roster character (``character`` = roster_id)
+       from the pre-generated character bank — reused across episodes;
+    2. the generated realistic close shot for the slot starter;
+    3. the raw starter frame.
+    The slot starter (realistic or raw) stays in the list as the pose anchor.
+    """
     ensure_mp4(settings, segment["clip"])
     mp4_rel = str(Path(segment["clip"]).with_suffix(".mp4")).replace("\\", "/")
     media = [{"type": "video", "url": public_url(base_url, f"/media/reference-mp4/files/{mp4_rel}")}]
+
+    def character_identity_for(roster_id: str | None) -> str | None:
+        if not roster_id:
+            return None
+        for entry in (character_manifest or {}).get("characters", []):
+            if entry.get("roster_id") == roster_id and entry.get("status") in {
+                "generated",
+                "existing",
+            }:
+                return entry.get("identity")
+        return None
 
     def realistic_for(starter_rel: str) -> str | None:
         for shot in (realistic_manifest or {}).get("shots", []):
@@ -146,7 +166,16 @@ def build_media(
                 return shot.get("realistic")
         return None
 
-    identity_rel = segment.get("identity") or segment.get("starter")
+    character_identity = character_identity_for(segment.get("character"))
+    if character_identity:
+        media.append(
+            {
+                "type": "reference_image",
+                "url": public_url(base_url, f"/media/character-bank/files/{character_identity}"),
+            }
+        )
+
+    identity_rel = None if character_identity else (segment.get("identity") or segment.get("starter"))
     for ref_rel in dict.fromkeys(filter(None, [identity_rel, segment.get("starter")])):
         realistic = realistic_for(ref_rel)
         url = (
@@ -288,6 +317,13 @@ def load_realistic_manifest(settings: Settings) -> dict[str, Any] | None:
     return None if manifest.get("dry_run") else manifest
 
 
+def load_character_manifest(settings: Settings) -> dict[str, Any] | None:
+    from youvsmany.media import characters  # local import to avoid cycles
+
+    manifest = characters.existing_manifest(settings)
+    return None if not manifest or manifest.get("dry_run") else manifest
+
+
 async def generate(
     settings: Settings,
     *,
@@ -306,6 +342,7 @@ async def generate(
     out_dir = video_out_dir(settings)
     out_dir.mkdir(parents=True, exist_ok=True)
     realistic_manifest = load_realistic_manifest(settings)
+    character_manifest = load_character_manifest(settings)
 
     manifest: dict[str, Any] = {
         "version": 1,
@@ -351,7 +388,7 @@ async def generate(
         }
         video_rel = f"segments/{index:03d}_{entry['segment_id']}.mp4"
         try:
-            media = build_media(settings, base_url, segment, realistic_manifest)
+            media = build_media(settings, base_url, segment, realistic_manifest, character_manifest)
             entry["media"] = media
             if dry_run:
                 entry["status"] = "planned"

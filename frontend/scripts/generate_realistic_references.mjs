@@ -126,6 +126,11 @@ function stableSeed(shot) {
   return profile.seed + shotOffset;
 }
 
+// The canonical studio-room description shared by every generation prompt so
+// all characters and shots land in the same room. Keep byte-identical to
+// backend/src/youvsmany/media/studio.py (STUDIO_SCENE).
+const STUDIO_SCENE = "the same modern television debate studio: layered deep-blue backlit wall panels, a dark ceiling with a visible studio lighting rig, a long warm walnut debate desk with slim microphones, cool blue ambient light with a soft warm key light, and plain glowing screen panels with no writing on them";
+
 function promptFor(shot) {
   const profile = speakerProfiles[shot.speakerId] || speakerProfiles.protagonist;
   const isIntro = shot.group === "intro";
@@ -138,10 +143,11 @@ function promptFor(shot) {
     identityLine,
     "Create a realistic 9:16 cinematic live-action frame for a premium televised debate show.",
     `Subject: ${profile.description}.`,
+    `Environment: ${STUDIO_SCENE}.`,
     `Camera: ${shotText}.`,
     "Preserve the same speaker position, body orientation, table placement, lighting direction and camera perspective from the source reference.",
     "Keep this speaker visually consistent across every image: same facial features, hairstyle, outfit colors and overall identity.",
-    "Style: photorealistic broadcast photography, natural lighting, realistic fabric and materials, polished studio set, gentle depth of field.",
+    "Style: photorealistic broadcast photography, natural lighting, realistic fabric and materials, gentle depth of field.",
     "No captions, no subtitles, no lower thirds, no text, no logos, no watermark.",
   ].join(" ");
 }
@@ -149,9 +155,9 @@ function promptFor(shot) {
 // Deliberately plain wording used when moderation rejects the main prompt.
 function fallbackPromptFor(shot) {
   if (shot.group === "intro") {
-    return "Turn this image into a realistic photo of the same television debate studio. Keep the same composition, seating layout, table and camera angle. Vertical 9:16 framing. No text or logos.";
+    return `Turn this image into a realistic photo of the same television debate studio. Setting: ${STUDIO_SCENE}. Keep the same composition, seating layout, table and camera angle. Vertical 9:16 framing. No text or logos.`;
   }
-  return "Turn this into a realistic photo of a professional television debate speaker. Keep the same pose, seat position, outfit colors and camera angle as the reference images. Vertical 9:16 framing. No text or logos.";
+  return `Turn this into a realistic photo of a professional television debate speaker. Setting: ${STUDIO_SCENE}. Keep the same pose, seat position, outfit colors and camera angle as the reference images. Vertical 9:16 framing. No text or logos.`;
 }
 
 function negativePrompt() {

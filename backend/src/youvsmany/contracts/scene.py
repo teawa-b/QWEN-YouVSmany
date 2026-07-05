@@ -155,6 +155,22 @@ class SceneSegment(BaseModel):
         return round(self.end_s - self.start_s, 3)
 
 
+class CharacterRef(BaseModel):
+    """A speaker's assigned visual identity from the persistent character roster.
+
+    Points at a pre-generated identity image in the characters bank so media
+    generation reuses a saved face instead of inventing a new one per episode."""
+
+    roster_id: str
+    label: str = ""
+    visual_presentation: str = "neutral"
+    identity_image: str = Field(
+        ..., description="Path relative to the characters bank, e.g. 'vega/identity.png'."
+    )
+    description: str = ""
+    seed: int = 0
+
+
 class SceneManifest(BaseModel):
     """The Phase 2 deliverable: a renderer-neutral, audio-locked episode plan."""
 
@@ -165,6 +181,10 @@ class SceneManifest(BaseModel):
     audio: list[AudioCue] = Field(default_factory=list)
     voice_map: dict[str, str] = Field(
         default_factory=dict, description="character_id -> voice_id used for TTS."
+    )
+    character_refs: dict[str, CharacterRef] = Field(
+        default_factory=dict,
+        description="character_id -> persistent roster identity used for media generation.",
     )
     total_duration_s: float = 0.0
     crop_safe_9x16: bool = True

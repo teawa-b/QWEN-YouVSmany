@@ -672,6 +672,12 @@ function render(d){
 const HH_REF_BASE = "/assets/reference/vertical-v1/";
 const HH_REAL_BASE = "/assets/reference/realistic-v1/";
 const HH_MODEL = "happyhorse-1.0-video-edit";
+// The one canonical studio-room description embedded in every generation
+// prompt so all characters and shots land in the same room. MUST stay
+// byte-identical to STUDIO_SCENE in backend/src/youvsmany/media/studio.py
+// (backend tests assert the sync).
+const STUDIO_SCENE = "the same modern television debate studio: layered deep-blue backlit wall panels, a dark ceiling with a visible studio lighting rig, a long warm walnut debate desk with slim microphones, cool blue ambient light with a soft warm key light, and plain glowing screen panels with no writing on them";
+const HH_CHAR_BASE = "assets/reference/characters-v1/";
 const HH_SLOTS = ["second_speaker","third_speaker","fourth_speaker"];
 
 function renderHappyHorseFlow(){
@@ -749,13 +755,24 @@ function refForSegment(d, s){
     clip: `${slot}/${assetSpeaker}/${angle}/clip.webm`,
   };
 }
+function charRefFor(d, s){
+  return d.scene?.character_refs?.[s.speaker_id] || null;
+}
+// Wan-family prompt structure: subject -> scene -> motion -> camera -> style.
+// The scene line is the shared STUDIO_SCENE so every segment renders the same
+// room; the subject line carries the persistent roster description when the
+// episode has one, so the reference image and the words reinforce each other.
 function happyHorsePrompt(d, s){
-  const who = (d.cast.find(c=>c.character_id===s.speaker_id)||{}).display_name || "the debate speaker";
+  const ref = charRefFor(d, s);
+  const who = ref?.description
+    || ((d.cast.find(c=>c.character_id===s.speaker_id)||{}).display_name || "the debate speaker");
   const shot = String(s.camera?.shot || "speaker shot").replace(/_/g," ");
   return [
     `Transform this 9:16 debate-stage source clip into a realistic live-action ${shot}.`,
-    `Use the reference image to preserve ${who}'s identity, outfit, seat position and body orientation.`,
-    `Keep the original camera motion, table layout, speaking gestures and timing from the source video.`,
+    `Subject: the person from the first reference image — ${who} — keep their exact face, hairstyle, outfit, seat position and body orientation.`,
+    `Scene: ${STUDIO_SCENE}.`,
+    `Motion: keep the original speaking gestures, camera motion, table layout and timing from the source video.`,
+    `Style: photorealistic broadcast footage, natural lighting, gentle depth of field.`,
     `No captions, no lower thirds, no logos, no watermark, no extra text.`
   ].join(" ");
 }
@@ -778,6 +795,36 @@ async function loadRealisticBank(){
     }catch{}
   }
   return null;
+}
+// Persistent reusable character identity bank (generated once, reused every
+// episode). Local repo copy first, hosted backend copy second.
+async function loadCharacterBank(){
+  const sources = [
+    { label:"frontend", manifest:HH_CHAR_BASE + "manifest.json", filesBase:HH_CHAR_BASE },
+  ];
+  if(API_BASE) sources.push({
+    label:"backend",
+    manifest:api("/media/character-bank/manifest.json"),
+    filesBase:api("/media/character-bank/files/"),
+  });
+  for(const source of sources){
+    try{
+      const r = await fetch(source.manifest, {cache:"no-store"});
+      if(!r.ok) continue;
+      const manifest = await r.json();
+      if(manifest?.dry_run) continue;
+      return { ...source, manifest };
+    }catch{}
+  }
+  return null;
+}
+function characterIdentityUrl(d, s, charBank){
+  const ref = charRefFor(d, s);
+  if(!ref || !charBank) return null;
+  const entry = (charBank.manifest?.characters || []).find(
+    c=>c.roster_id===ref.roster_id && ["generated","existing"].includes(c.status) && c.identity
+  );
+  return entry ? joinMediaUrl(charBank.filesBase, entry.identity) : null;
 }
 async function loadRealisticStatus(){
   if(!API_BASE) return null;
@@ -802,22 +849,25 @@ function referenceUrl(starterPath, bank){
   if(real && bank) return joinMediaUrl(bank.filesBase, real);
   return location.origin + HH_REF_BASE + starterPath;
 }
-function happyHorsePayload(d, s, ref, bank){
+function happyHorsePayload(d, s, ref, bank, charBank){
+  const rosterIdentity = characterIdentityUrl(d, s, charBank);
   const media = [
     { type:"video", url: location.origin + HH_REF_BASE + ref.clip },
-    { type:"reference_image", url: referenceUrl(ref.identity || ref.starter, bank) },
+    // Identity anchor first: the persistent roster face when the bank has it,
+    // else the slot's realistic/starter close shot.
+    { type:"reference_image", url: rosterIdentity || referenceUrl(ref.identity || ref.starter, bank) },
   ];
-  if(ref.identity && ref.identity !== ref.starter) media.push({ type:"reference_image", url: referenceUrl(ref.starter, bank) });
+  if((ref.identity && ref.identity !== ref.starter) || rosterIdentity) media.push({ type:"reference_image", url: referenceUrl(ref.starter, bank) });
   return {
     model: HH_MODEL,
     input: { prompt: happyHorsePrompt(d, s), media: media.slice(0,5) },
     parameters: { resolution:"720P" }
   };
 }
-function buildHappyHorseSegments(d, bank){
+function buildHappyHorseSegments(d, bank, charBank){
   return (d.scene?.segments || []).filter(s=>s.speaker_id!=="caption").map((s, i)=>{
     const ref = refForSegment(d, s);
-    return { index:i, segment:s, ref, payload:happyHorsePayload(d, s, ref, bank) };
+    return { index:i, segment:s, ref, payload:happyHorsePayload(d, s, ref, bank, charBank) };
   });
 }
 function audioRefFor(d, s){
@@ -855,8 +905,9 @@ async function mountHappyHorseFlow(d, colorFor){
   const root = $("#happyHorseFlow");
   if(!root) return;
   const bank = await loadRealisticBank();
+  const charBank = await loadCharacterBank();
   const backendStatus = await loadRealisticStatus();
-  const segments = buildHappyHorseSegments(d, bank);
+  const segments = buildHappyHorseSegments(d, bank, charBank);
   if(!segments.length) return;
   const video = $("#hhVideo"), overlay = $("#hhOverlay"), payload = $("#hhPayload");
   const nameOf = cid => (d.cast.find(c=>c.character_id===cid)||{}).display_name || cid;
@@ -899,12 +950,15 @@ async function mountHappyHorseFlow(d, colorFor){
     const key = `${item.ref.group}/${item.ref.speakerId}/close`;
     if(seen.has(key)) continue;
     seen.add(key);
-    uniqueRefs.push({ name:nameOf(item.ref.speakerId), path:item.ref.identity || item.ref.starter, group:item.ref.group });
+    uniqueRefs.push({ name:nameOf(item.ref.speakerId), path:item.ref.identity || item.ref.starter, group:item.ref.group, segment:item.segment });
   }
   $("#hhRefs").innerHTML = uniqueRefs.slice(0,5).map(r=>{
+    const roster = characterIdentityUrl(d, r.segment, charBank);
+    const rosterLabel = charRefFor(d, r.segment)?.label;
     const real = realisticFor(r.path, bank);
-    const src = real ? joinMediaUrl(bank.filesBase, real) : HH_REF_BASE + r.path;
-    return `<div class="hh-ref"><img src="${src}" alt="${esc(r.name)} reference"><span>${esc(r.name)} · ${real?"Qwen realistic":"starter mock"}</span></div>`;
+    const src = roster || (real ? joinMediaUrl(bank.filesBase, real) : HH_REF_BASE + r.path);
+    const kind = roster ? `roster · ${esc(rosterLabel || "")}` : real ? "Qwen realistic" : "starter mock";
+    return `<div class="hh-ref"><img src="${src}" alt="${esc(r.name)} reference"><span>${esc(r.name)} · ${kind}</span></div>`;
   }).join("");
   $("#hhSegments").innerHTML = segments.map((item, i)=>{
     const s = item.segment, col = colorFor[s.speaker_id] || MOD;
@@ -999,6 +1053,7 @@ async function mountLiveVideoStep(d, segments, els){
           identity: item.ref.identity || item.ref.starter,
           starter: item.ref.starter,
           audio: audioRefFor(d, item.segment),
+          character: charRefFor(d, item.segment)?.roster_id || null,
         })),
       };
       const r = await fetch(api("/media/video-edit/generate"), {

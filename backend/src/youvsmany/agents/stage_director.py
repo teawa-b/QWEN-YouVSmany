@@ -20,6 +20,7 @@ from youvsmany.contracts.scene import (
     CameraAnchor,
     CameraShot,
     CameraSpec,
+    CharacterRef,
     SceneManifest,
     SceneSegment,
     SceneTemplate,
@@ -29,6 +30,7 @@ from youvsmany.contracts.scene import (
     Vec3,
     VisualPriority,
 )
+from youvsmany.media.characters import character_ref_payload, select_character_visuals
 from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID, Transcript
 
 # Qwen Cloud CosyVoice-v3-plus system voices: one male (longanyang), one female
@@ -135,12 +137,25 @@ def build_scene_manifest(ep: Episode, tts: TTSProvider) -> SceneManifest:
         segments=segments,
         audio=audio,
         voice_map=voice_map,
+        character_refs=_assign_character_refs(cast, ep.brief.seed),
         total_duration_s=round(cursor, 3),
         crop_safe_9x16=True,
     )
 
 
 # --- mapping helpers --------------------------------------------------
+
+
+def _assign_character_refs(cast: Cast, seed: int) -> dict[str, CharacterRef]:
+    """Cast persistent roster identities onto this episode's speakers, so media
+    generation reuses pre-generated identity images instead of inventing new
+    characters per run."""
+    speakers = [(c.character_id, str(c.visual_presentation.value)) for c in cast.all_speakers()]
+    selected = select_character_visuals(speakers, seed)
+    return {
+        character_id: CharacterRef(**character_ref_payload(entry))
+        for character_id, entry in selected.items()
+    }
 
 
 def _assign_voices(cast: Cast) -> dict[str, str]:

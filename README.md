@@ -60,6 +60,8 @@ It exposes:
 - `GET /episodes/{id}/full`
 - `GET /media/realistic-refs/status`
 - `POST /media/realistic-refs/generate`
+- `GET /media/character-bank/status`
+- `POST /media/character-bank/generate`
 - `GET /media/video-edit/status`
 - `POST /media/video-edit/generate`
 
@@ -157,6 +159,23 @@ QWEN_WS_URL=wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference
 
 Check `GET /health`; CosyVoice is available when it reports
 `"tts_provider":"qwen"` and `"tts_ready":true`.
+
+## Consistency & the Character Roster
+
+Two mechanisms keep generated media coherent:
+
+- **One canonical studio room.** Every image-edit and video-edit prompt embeds
+  the same studio description (`backend/src/youvsmany/media/studio.py`,
+  mirrored as `STUDIO_SCENE` in `frontend/index.html`; a test enforces the
+  sync), so all characters and shots land in the same room.
+- **A persistent character roster.** `CHARACTER_ROSTER` defines 12 varied
+  reusable panelists with stable seeds. The stage director deterministically
+  casts them onto each episode's speakers (`scene.character_refs`), and their
+  identity images are generated **once** into
+  `frontend/assets/reference/characters-v1/` via
+  `POST /media/character-bank/generate` (then persisted with
+  `npm run pull:character-bank`). Episodes reuse the saved identities instead
+  of generating new characters every run — faster and consistent.
 
 ## Status
 

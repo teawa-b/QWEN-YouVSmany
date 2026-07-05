@@ -39,7 +39,10 @@ const config = {
     .filter((x) => x.startsWith("--reference-image="))
     .map((x) => x.split("=", 2)[1])
     .filter(Boolean),
-  prompt: arg("prompt", "Transform this 9:16 debate-stage source clip into a realistic live-action debate-show shot while preserving the original motion, timing, camera, table layout, and speaker identity from the reference images. No text, no subtitles, no lower thirds, no logos, no watermark."),
+  // Default prompt mirrors happyHorsePrompt() in index.html: subject -> scene
+  // (the canonical STUDIO_SCENE room, keep in sync with
+  // backend/src/youvsmany/media/studio.py) -> motion -> style.
+  prompt: arg("prompt", "Transform this 9:16 debate-stage source clip into a realistic live-action debate-show shot. Subject: the person from the first reference image — keep their exact face, hairstyle, outfit, seat position and body orientation. Scene: the same modern television debate studio: layered deep-blue backlit wall panels, a dark ceiling with a visible studio lighting rig, a long warm walnut debate desk with slim microphones, cool blue ambient light with a soft warm key light, and plain glowing screen panels with no writing on them. Motion: keep the original speaking gestures, camera motion, table layout and timing from the source video. Style: photorealistic broadcast footage, natural lighting, gentle depth of field. No captions, no lower thirds, no logos, no watermark, no extra text."),
   resolution: arg("resolution", "720P"),
   out: path.resolve(REPO_ROOT, arg("out", "output/happyhorse/video-edit.mp4")),
   pollMs: Number(arg("poll-ms", "10000")),

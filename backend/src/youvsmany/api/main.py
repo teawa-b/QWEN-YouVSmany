@@ -29,7 +29,7 @@ from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
 from youvsmany.contracts.brief import ShowBrief
 from youvsmany.evals.metrics import score_episode
-from youvsmany.media import characters, reference_assets, video_edit
+from youvsmany.media import characters, reference_assets, video_edit, video_variants
 from youvsmany.store import EpisodeStore
 
 app = FastAPI(title="You Vs Many — Debate Intelligence", version="0.1.0")
@@ -327,6 +327,74 @@ async def generate_character_bank(body: CharacterBankGenerateBody) -> dict:
 @app.get("/media/character-bank/jobs/{job_id}")
 def character_bank_job(job_id: str) -> dict:
     job = characters.JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    return job
+
+
+class VideoVariantSpec(BaseModel):
+    label: str
+    model: str
+    path_key: str = Field(description="One of the known DashScope video task paths")
+    input: dict = Field(description="Raw task input; site-relative media refs are made public")
+    parameters: dict = Field(default_factory=dict)
+    mux_audio: str | None = Field(
+        default=None, description="Audio URL to mux after download (for silent-output models)"
+    )
+
+
+class VideoVariantsGenerateBody(BaseModel):
+    variants: list[VideoVariantSpec] = Field(min_length=1, max_length=8)
+    dry_run: bool = False
+    background: bool = True
+
+
+@app.get("/media/video-variants/manifest.json")
+def video_variants_manifest():
+    file = video_variants.manifest_path(get_settings())
+    if not file.exists():
+        raise HTTPException(status_code=404, detail="no variants generated")
+    return FileResponse(file, media_type="application/json")
+
+
+@app.post("/media/video-variants/generate")
+async def generate_video_variants(body: VideoVariantsGenerateBody, request: Request) -> dict:
+    settings = get_settings()
+    if not body.dry_run and not settings.qwen_dashscope_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Qwen/DashScope key is not configured on this backend",
+        )
+    specs = [v.model_dump() for v in body.variants]
+    for spec in specs:
+        problem = video_variants.validate_variant(spec)
+        if problem:
+            raise HTTPException(status_code=422, detail=f"{spec.get('label')}: {problem}")
+
+    base_url = settings.public_base_url or str(request.base_url).rstrip("/")
+    if base_url.startswith("http://") and "localhost" not in base_url and "127.0.0.1" not in base_url:
+        base_url = "https://" + base_url[len("http://"):]
+
+    kwargs = {"base_url": base_url, "variants": specs, "dry_run": body.dry_run}
+    if body.background:
+        job = video_variants.create_job()
+        asyncio.create_task(video_variants.run_job(job["job_id"], settings, **kwargs))
+        return {"status": "queued", "job": job}
+
+    try:
+        manifest = await video_variants.generate(settings, **kwargs)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return {
+        "status": "succeeded",
+        "variants": len(manifest.get("variants", [])),
+        "files_url": "/media/video-edit/files/variants/",
+    }
+
+
+@app.get("/media/video-variants/jobs/{job_id}")
+def video_variants_job(job_id: str) -> dict:
+    job = video_variants.JOBS.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
     return job

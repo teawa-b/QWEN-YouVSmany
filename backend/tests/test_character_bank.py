@@ -200,3 +200,43 @@ def test_video_edit_media_prefers_roster_identity(tmp_path, monkeypatch):
         settings, "https://api.example", {**segment, "character": "nobody"}, None, bank
     )
     assert all("character-bank" not in m["url"] for m in media)
+
+
+def test_video_variants_endpoint_validates_and_plans(monkeypatch, tmp_path):
+    monkeypatch.setenv("YVM_VIDEO_OUT_DIR", str(tmp_path / "videos"))
+    client = TestClient(app)
+
+    good = {
+        "label": "s2v",
+        "model": "wan2.2-s2v",
+        "path_key": "image2video",
+        "input": {"image_url": "/media/character-bank/files/atlas/identity.png",
+                  "audio_url": "/audio/x.mp3"},
+        "parameters": {"resolution": "720P"},
+    }
+    r = client.post("/media/video-variants/generate",
+                    json={"variants": [good], "dry_run": True, "background": False})
+    assert r.status_code == 200
+    assert r.json()["variants"] == 1
+
+    for bad, why in [
+        ({**good, "model": "gpt-video"}, "model prefix"),
+        ({**good, "path_key": "anything"}, "path key"),
+        ({**good, "input": {}}, "empty input"),
+    ]:
+        r = client.post("/media/video-variants/generate",
+                        json={"variants": [bad], "dry_run": True, "background": False})
+        assert r.status_code == 422, why
+
+
+def test_video_variants_resolves_relative_urls():
+    from youvsmany.media.video_variants import resolve_urls
+
+    resolved = resolve_urls("https://api.example", {
+        "image_url": "/media/character-bank/files/atlas/identity.png",
+        "audio_url": "https://cdn.example/x.mp3",
+        "nested": ["/audio/y.mp3", {"z": "/a/b.png"}],
+    })
+    assert resolved["image_url"] == "https://api.example/media/character-bank/files/atlas/identity.png"
+    assert resolved["audio_url"] == "https://cdn.example/x.mp3"
+    assert resolved["nested"][0] == "https://api.example/audio/y.mp3"

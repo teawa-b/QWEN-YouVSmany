@@ -146,6 +146,19 @@ Sub-tasks:
       realistic shots gracefully fall back to starter frames.
 - [x] Package export emits short candidate clips from highlight windows and
       records the source segment ids in `package_manifest.json`.
+- [x] **Realistic highlight shorts (cost-aware strategy)**: full-episode
+      realistic generation proved too expensive per segment, so the product
+      artifact is the highlight short. `POST /media/shorts/generate` renders
+      only the hero (short-candidate) segments through audio-driven
+      `wan2.6-i2v` at 720P — true lipsync from each speaker's roster identity
+      image + CosyVoice line — hard-capped at `YVM_SHORT_SEGMENT_CAP`
+      (default 3) clips per request, billed at the 5s tier when the line
+      fits. Clips are stitched with native audio and burned speaker captions
+      into `shorts/short.mp4`; the web app's step 5 drives it. The full
+      episode remains the free 3D captioned edit. (Model shootout on the
+      intl account: `wan2.2-s2v`/`emo-v1`/`wan2.7-i2v-plus` do not exist;
+      `wan2.5-i2v-preview` and `wan2.6-i2v` do, with native audio lipsync —
+      wan2.6 is sharper and 30fps, chosen as default.)
 
 ## Phase 6 - Integration & Evaluation
 

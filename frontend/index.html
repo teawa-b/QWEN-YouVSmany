@@ -677,7 +677,7 @@ const HH_MODEL = "happyhorse-1.0-video-edit";
 // byte-identical to STUDIO_SCENE in backend/src/youvsmany/media/studio.py
 // (backend tests assert the sync).
 const STUDIO_SCENE = "the same modern television debate studio: layered deep-blue backlit wall panels, a dark ceiling with a visible studio lighting rig, a long warm walnut debate desk with slim microphones, cool blue ambient light with a soft warm key light, and plain glowing screen panels with no writing on them";
-const HH_CHAR_BASE = "assets/reference/characters-v1/";
+const HH_CHAR_BASE = "/assets/reference/characters-v1/";
 const HH_SLOTS = ["second_speaker","third_speaker","fourth_speaker"];
 
 function renderHappyHorseFlow(){
@@ -716,6 +716,15 @@ function renderHappyHorseFlow(){
             <button class="hh-btn primary" id="hhGenerateVideo" hidden>Generate live video (Qwen HappyHorse)</button>
             <button class="hh-btn" id="hhPlayLive" hidden>Play generated conversation</button>
             <span class="hh-note" id="hhVideoJobStatus"></span>
+          </div>
+        </div>
+        <div class="hh-step">
+          <h3>5. Realistic highlight short (wan2.6, lipsynced)</h3>
+          <div class="hh-note" id="hhShortStatus">Checking backend short capability...</div>
+          <div class="hh-action">
+            <button class="hh-btn primary" id="hhGenerateShort" hidden>Make realistic short (hero moments)</button>
+            <button class="hh-btn" id="hhPlayShort" hidden>Play short</button>
+            <span class="hh-note" id="hhShortJobStatus"></span>
           </div>
         </div>
       </div>
@@ -1009,6 +1018,93 @@ async function mountHappyHorseFlow(d, colorFor){
   };
   select(0, false);
   mountLiveVideoStep(d, segments, {video, overlay}, colorFor);
+  mountShortStep(d, {video, overlay}, colorFor);
+}
+// Cost-aware realistic short: only the hero (short-candidate) segments run
+// through the audio-driven wan2.6 route at 720P, capped server-side.
+async function mountShortStep(d, els, colorFor){
+  const statusEl = $("#hhShortStatus"), genBtn = $("#hhGenerateShort"),
+        playBtn = $("#hhPlayShort"), jobStatus = $("#hhShortJobStatus");
+  if(!statusEl) return;
+  let ss = null;
+  try{
+    const r = await fetch(api("/media/shorts/status"), {cache:"no-store"});
+    if(r.ok) ss = await r.json();
+  }catch{}
+  if(!ss){
+    statusEl.textContent = API_BASE
+      ? "Backend shorts endpoint not available yet (deploy in progress?)."
+      : "Connect a backend (YVM_API_BASE) to generate realistic shorts.";
+    statusEl.classList.add("warn");
+    return;
+  }
+  const heroes = (d.scene?.segments || [])
+    .filter(s=>s.short_candidate && s.speaker_id!=="caption" && charRefFor(d, s) && audioRefFor(d, s))
+    .slice(0, ss.segment_cap || 3);
+  const ready = ss.video_ready && ss.ffmpeg && heroes.length;
+  statusEl.classList.toggle("warn", !ready);
+  statusEl.textContent = ready
+    ? `Backend ready: ${ss.model} @ ${ss.resolution}, ${heroes.length} hero moment${heroes.length>1?"s":""} selected (cap ${ss.segment_cap}). ${ss.short ? "A generated short already exists." : ""}`
+    : !ss.video_ready
+      ? "Backend has no Qwen/DashScope key configured."
+      : !ss.ffmpeg
+        ? "Backend is missing ffmpeg."
+        : "No hero segments with roster identity + TTS audio in this episode.";
+  const playShort = ()=>{
+    els.video.src = api("/media/video-edit/files/" + (ss.short || "shorts/short.mp4")) + "?t=" + Date.now();
+    els.video.muted = false;
+    els.overlay.innerHTML = "<b>Realistic highlight short</b><br>Hero moments, wan2.6 audio-driven lipsync.";
+    els.video.play().catch(()=>{});
+  };
+  playBtn.hidden = !ss.short;
+  playBtn.onclick = playShort;
+  genBtn.hidden = !ready;
+  genBtn.onclick = async ()=>{
+    genBtn.disabled = true;
+    jobStatus.textContent = "Queueing wan2.6 hero clips...";
+    try{
+      const body = {
+        background: true,
+        segments: heroes.map(s=>({
+          segment_id: s.segment_id,
+          character: charRefFor(d, s).roster_id,
+          audio: audioRefFor(d, s),
+          dialogue: s.dialogue,
+          speaker_name: (d.cast.find(c=>c.character_id===s.speaker_id)||{}).display_name || null,
+          speaker_color: (colorFor && colorFor[s.speaker_id]) || null,
+          duration_s: Math.max(0.5, s.end_s - s.start_s),
+        })),
+      };
+      const r = await fetch(api("/media/shorts/generate"), {
+        method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
+      });
+      const started = await r.json();
+      if(!r.ok) throw new Error(started.detail || `Request failed (${r.status})`);
+      for(let i=0;i<360;i++){
+        await new Promise(res=>setTimeout(res, 10000));
+        const jr = await fetch(api(`/media/shorts/jobs/${started.job.job_id}`), {cache:"no-store"});
+        const job = await jr.json();
+        if(!jr.ok) throw new Error(job.detail || `Job status failed (${jr.status})`);
+        jobStatus.textContent = job.total
+          ? `Generating hero clip ${job.current}/${job.total}${job.failed ? ` (${job.failed} failed)` : ""} — wan2.6 tasks take 1-5 min each...`
+          : `Short generation ${job.status}`;
+        if(job.status==="succeeded" || job.status==="partial"){
+          jobStatus.textContent = job.status==="partial"
+            ? `Short generated with ${job.failed || "some"} failed clips.`
+            : "Realistic short generated.";
+          ss.short = job.manifest?.short || "shorts/short.mp4";
+          playBtn.hidden = false;
+          playShort();
+          break;
+        }
+        if(job.status==="failed") throw new Error(job.error || "backend short job failed");
+      }
+      genBtn.disabled = false;
+    }catch(e){
+      jobStatus.textContent = "Short generation failed: " + e.message;
+      genBtn.disabled = false;
+    }
+  };
 }
 async function mountLiveVideoStep(d, segments, els, colorFor){
   const statusEl = $("#hhVideoStatus"), genBtn = $("#hhGenerateVideo"),

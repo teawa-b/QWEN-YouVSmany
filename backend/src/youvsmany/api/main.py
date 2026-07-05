@@ -29,7 +29,7 @@ from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
 from youvsmany.contracts.brief import ShowBrief
 from youvsmany.evals.metrics import score_episode
-from youvsmany.media import characters, reference_assets, video_edit, video_variants
+from youvsmany.media import characters, reference_assets, shorts, video_edit, video_variants
 from youvsmany.store import EpisodeStore
 
 app = FastAPI(title="You Vs Many — Debate Intelligence", version="0.1.0")
@@ -395,6 +395,83 @@ async def generate_video_variants(body: VideoVariantsGenerateBody, request: Requ
 @app.get("/media/video-variants/jobs/{job_id}")
 def video_variants_job(job_id: str) -> dict:
     job = video_variants.JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    return job
+
+
+class ShortSegment(BaseModel):
+    segment_id: str
+    character: str = Field(description="Roster character id whose identity image drives the clip")
+    audio: str = Field(description="TTS clip URL (site-relative ok) that drives the lipsync")
+    dialogue: str | None = None
+    speaker_name: str | None = None
+    speaker_color: str | None = None
+    duration_s: float = Field(default=10.0, gt=0, description="Spoken line length in seconds")
+
+
+class ShortsGenerateBody(BaseModel):
+    segments: list[ShortSegment] = Field(min_length=1, max_length=8)
+    model: str = shorts.DEFAULT_MODEL
+    resolution: str = shorts.DEFAULT_RESOLUTION
+    dry_run: bool = False
+    background: bool = True
+
+
+@app.get("/media/shorts/status")
+def shorts_status() -> dict:
+    return shorts.status(get_settings())
+
+
+@app.get("/media/shorts/manifest.json")
+def shorts_manifest():
+    file = shorts.manifest_path(get_settings())
+    if not file.exists():
+        raise HTTPException(status_code=404, detail="no short generated")
+    return FileResponse(file, media_type="application/json")
+
+
+@app.post("/media/shorts/generate")
+async def generate_short(body: ShortsGenerateBody, request: Request) -> dict:
+    settings = get_settings()
+    if not body.dry_run and not settings.qwen_dashscope_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Qwen/DashScope key is not configured on this backend",
+        )
+    base_url = settings.public_base_url or str(request.base_url).rstrip("/")
+    if base_url.startswith("http://") and "localhost" not in base_url and "127.0.0.1" not in base_url:
+        base_url = "https://" + base_url[len("http://"):]
+
+    kwargs = {
+        "base_url": base_url,
+        "segments": [s.model_dump() for s in body.segments],
+        "model": body.model,
+        "resolution": body.resolution,
+        "dry_run": body.dry_run,
+    }
+    if body.background:
+        job = shorts.create_job()
+        asyncio.create_task(shorts.run_job(job["job_id"], settings, **kwargs))
+        return {"status": "queued", "job": job}
+
+    try:
+        manifest = await shorts.generate(settings, **kwargs)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return {
+        "status": "succeeded",
+        "segments": len(manifest.get("segments", [])),
+        "short": manifest.get("short"),
+        "files_url": "/media/video-edit/files/",
+    }
+
+
+@app.get("/media/shorts/jobs/{job_id}")
+def shorts_job(job_id: str) -> dict:
+    job = shorts.JOBS.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
     return job

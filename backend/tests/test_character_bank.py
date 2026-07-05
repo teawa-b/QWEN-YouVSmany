@@ -240,3 +240,73 @@ def test_video_variants_resolves_relative_urls():
     assert resolved["image_url"] == "https://api.example/media/character-bank/files/atlas/identity.png"
     assert resolved["audio_url"] == "https://cdn.example/x.mp3"
     assert resolved["nested"][0] == "https://api.example/audio/y.mp3"
+
+
+def test_shorts_billing_duration_and_prompt():
+    from youvsmany.media import shorts
+
+    assert shorts.billed_duration_s(3.2) == 5
+    assert shorts.billed_duration_s(4.5) == 5
+    assert shorts.billed_duration_s(7.6) == 10
+    prompt = shorts.prompt_for("confident man in a teal suit")
+    assert STUDIO_SCENE in prompt
+    assert "lips synchronized" in prompt
+
+
+def test_shorts_dry_run_caps_segments_and_resolves_identity(tmp_path, monkeypatch):
+    from youvsmany.media import shorts
+
+    monkeypatch.setenv("YVM_SHORT_SEGMENT_CAP", "2")
+    bank_dir = tmp_path / "characters-v1"
+    bank_dir.mkdir(parents=True)
+    (bank_dir / "manifest.json").write_text(
+        __import__("json").dumps({
+            "characters": [
+                {"roster_id": "atlas", "identity": "atlas/identity.png",
+                 "status": "generated", "description": "confident man in a teal suit"},
+            ]
+        }),
+        encoding="utf-8",
+    )
+    settings = Settings(
+        character_bank_dir=str(bank_dir),
+        video_out_dir=str(tmp_path / "videos"),
+    )
+    seg = {"segment_id": "seg_00", "character": "atlas", "audio": "/audio/a.mp3",
+           "dialogue": "hi", "speaker_name": "Tom", "speaker_color": "#7b97ff",
+           "duration_s": 3.0}
+    manifest = asyncio.run(shorts.generate(
+        settings, base_url="https://api.example",
+        segments=[seg, {**seg, "segment_id": "seg_01"}, {**seg, "segment_id": "seg_02"}],
+        dry_run=True,
+    ))
+    assert manifest["requested_segments"] == 3
+    assert len(manifest["segments"]) == 2, "cap must limit spend"
+    entry = manifest["segments"][0]
+    assert entry["status"] == "planned"
+    assert entry["billed_duration_s"] == 5
+    assert STUDIO_SCENE in entry["prompt"]
+
+
+def test_shorts_endpoint_validation(tmp_path, monkeypatch):
+    monkeypatch.setenv("YVM_VIDEO_OUT_DIR", str(tmp_path / "videos"))
+    monkeypatch.setenv("YVM_CHARACTER_BANK_DIR", str(tmp_path / "characters-v1"))
+    client = TestClient(app)
+
+    status = client.get("/media/shorts/status").json()
+    assert status["model"] == "wan2.6-i2v"
+    assert status["segment_cap"] >= 1
+
+    seg = {"segment_id": "seg_00", "character": "atlas", "audio": "/audio/a.mp3",
+           "duration_s": 3.0}
+    r = client.post("/media/shorts/generate",
+                    json={"segments": [seg], "dry_run": True, "background": False})
+    assert r.status_code == 200
+
+    r = client.post("/media/shorts/generate",
+                    json={"segments": [seg], "model": "gpt-video",
+                          "dry_run": True, "background": False})
+    assert r.status_code == 422
+
+    r = client.post("/media/shorts/generate", json={"segments": [seg]})
+    assert r.status_code == 503, "live generation without a key must refuse"

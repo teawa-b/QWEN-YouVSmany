@@ -33,6 +33,18 @@ class Settings:
         "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
     )
     qwen_image_edit_model: str = os.getenv("QWEN_IMAGE_EDIT_MODEL", "qwen-image-edit-max")
+    # HappyHorse video edit (async: create task -> poll /tasks/{id}).
+    qwen_video_edit_url: str = os.getenv(
+        "QWEN_VIDEO_EDIT_URL",
+        "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis",
+    )
+    qwen_task_url_base: str = os.getenv(
+        "QWEN_TASK_URL_BASE", "https://dashscope-intl.aliyuncs.com/api/v1/tasks"
+    )
+    qwen_video_edit_model: str = os.getenv("QWEN_VIDEO_EDIT_MODEL", "happyhorse-1.0-video-edit")
+    # Public base URL of this backend, used to build media URLs DashScope can
+    # fetch. Empty = derive from the incoming request.
+    public_base_url: str = os.getenv("YVM_PUBLIC_BASE_URL", "")
     # CosyVoice runs over a WebSocket; point at the intl endpoint by default.
     qwen_ws_url: str = os.getenv(
         "QWEN_WS_URL", "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference"
@@ -49,6 +61,10 @@ class Settings:
     realistic_ref_dir: str = os.getenv(
         "YVM_REALISTIC_REF_DIR", "runs/media/reference/realistic-v1"
     )
+    # MP4 conversions of the starter WebM clips (HappyHorse rejects WebM).
+    reference_mp4_dir: str = os.getenv("YVM_REFERENCE_MP4_DIR", "runs/media/reference-mp4")
+    # Generated HappyHorse segment videos + stitched conversation.
+    video_out_dir: str = os.getenv("YVM_VIDEO_OUT_DIR", "runs/media/videos")
     request_timeout_s: float = float(os.getenv("QWEN_TIMEOUT_S", "120"))
 
 

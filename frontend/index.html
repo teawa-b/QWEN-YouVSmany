@@ -703,6 +703,15 @@ function renderHappyHorseFlow(){
           <h3>3. Full conversation video segments</h3>
           <div class="hh-segments" id="hhSegments"></div>
         </div>
+        <div class="hh-step">
+          <h3>4. Live HappyHorse generation</h3>
+          <div class="hh-note" id="hhVideoStatus">Checking backend video capability...</div>
+          <div class="hh-action">
+            <button class="hh-btn primary" id="hhGenerateVideo" hidden>Generate live video (Qwen HappyHorse)</button>
+            <button class="hh-btn" id="hhPlayLive" hidden>Play generated conversation</button>
+            <span class="hh-note" id="hhVideoJobStatus"></span>
+          </div>
+        </div>
       </div>
     </div>`;
 }
@@ -811,6 +820,37 @@ function buildHappyHorseSegments(d, bank){
     return { index:i, segment:s, ref, payload:happyHorsePayload(d, s, ref, bank) };
   });
 }
+function audioRefFor(d, s){
+  const cue = (d.scene?.audio || []).find(a=>a.speaker_id===s.speaker_id && Math.abs(a.start_s - s.start_s) < 0.05);
+  return cue?.audio_ref || null;
+}
+async function loadVideoEditStatus(){
+  if(!API_BASE) return null;
+  try{
+    const r = await fetch(api("/media/video-edit/status"), {cache:"no-store"});
+    if(!r.ok) return null;
+    return await r.json();
+  }catch{ return null; }
+}
+async function pollVideoJob(jobId, statusEl){
+  for(let i=0;i<360;i++){
+    await new Promise(r=>setTimeout(r, 10000));
+    const r = await fetch(api(`/media/video-edit/jobs/${jobId}`), {cache:"no-store"});
+    const job = await r.json();
+    if(!r.ok) throw new Error(job.detail || `Job status failed (${r.status})`);
+    statusEl.textContent = job.total
+      ? `Editing segment ${job.current}/${job.total}${job.failed ? ` (${job.failed} failed)` : ""} — HappyHorse tasks take 1-5 min each...`
+      : `Video generation ${job.status}`;
+    if(job.status==="succeeded" || job.status==="partial"){
+      statusEl.textContent = job.status==="partial"
+        ? `Generated with ${job.failed || "some"} failed segments — playing what finished.`
+        : "Live conversation video generated.";
+      return job;
+    }
+    if(job.status==="failed") throw new Error(job.error || "backend video job failed");
+  }
+  throw new Error("backend video job timed out");
+}
 async function mountHappyHorseFlow(d, colorFor){
   const root = $("#happyHorseFlow");
   if(!root) return;
@@ -914,6 +954,71 @@ async function mountHappyHorseFlow(d, colorFor){
     }
   };
   select(0, false);
+  mountLiveVideoStep(d, segments, {video, overlay});
+}
+async function mountLiveVideoStep(d, segments, els){
+  const statusEl = $("#hhVideoStatus"), genBtn = $("#hhGenerateVideo"),
+        playBtn = $("#hhPlayLive"), jobStatus = $("#hhVideoJobStatus");
+  if(!statusEl) return;
+  const vs = await loadVideoEditStatus();
+  if(!vs){
+    statusEl.textContent = API_BASE
+      ? "Backend video-edit endpoint not available yet (deploy in progress?)."
+      : "Connect a backend (YVM_API_BASE) to generate live HappyHorse video.";
+    statusEl.classList.add("warn");
+    return;
+  }
+  const ready = vs.video_ready && vs.ffmpeg;
+  statusEl.classList.toggle("warn", !ready);
+  statusEl.textContent = ready
+    ? `Backend ready: ${vs.model} + ffmpeg stitching. ${vs.conversation ? "A generated conversation video already exists." : ""}`
+    : !vs.video_ready
+      ? "Backend has no Qwen/DashScope key configured for video generation."
+      : "Backend is missing ffmpeg — segment videos can generate but won't be stitched.";
+  const playLive = ()=>{
+    els.video.src = api("/media/video-edit/files/" + vs.conversation) + "?t=" + Date.now();
+    els.video.muted = false;
+    els.overlay.innerHTML = "<b>Live HappyHorse conversation</b><br>Stitched from Qwen video-edit segments.";
+    els.video.play().catch(()=>{});
+  };
+  playBtn.hidden = !vs.conversation;
+  playBtn.onclick = playLive;
+  genBtn.hidden = !vs.video_ready;
+  genBtn.onclick = async ()=>{
+    genBtn.disabled = true;
+    jobStatus.textContent = "Queueing HappyHorse segment tasks...";
+    try{
+      const body = {
+        background: true,
+        resolution: "720P",
+        segments: segments.map(item=>({
+          segment_id: item.segment.segment_id,
+          speaker_id: item.segment.speaker_id,
+          prompt: happyHorsePrompt(d, item.segment),
+          clip: item.ref.clip,
+          identity: item.ref.identity || item.ref.starter,
+          starter: item.ref.starter,
+          audio: audioRefFor(d, item.segment),
+        })),
+      };
+      const r = await fetch(api("/media/video-edit/generate"), {
+        method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
+      });
+      const started = await r.json();
+      if(!r.ok) throw new Error(started.detail || `Request failed (${r.status})`);
+      await pollVideoJob(started.job.job_id, jobStatus);
+      const refreshed = await loadVideoEditStatus();
+      if(refreshed?.conversation){
+        vs.conversation = refreshed.conversation;
+        playBtn.hidden = false;
+        playLive();
+      }
+      genBtn.disabled = false;
+    }catch(e){
+      jobStatus.textContent = "Video generation failed: " + e.message;
+      genBtn.disabled = false;
+    }
+  };
 }
 async function pollRealisticJob(jobId, statusEl){
   for(let i=0;i<240;i++){

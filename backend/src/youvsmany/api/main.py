@@ -16,7 +16,7 @@ import asyncio
 import os
 from importlib.util import find_spec
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -29,7 +29,7 @@ from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
 from youvsmany.contracts.brief import ShowBrief
 from youvsmany.evals.metrics import score_episode
-from youvsmany.media import reference_assets
+from youvsmany.media import reference_assets, video_edit
 from youvsmany.store import EpisodeStore
 
 app = FastAPI(title="You Vs Many — Debate Intelligence", version="0.1.0")
@@ -54,6 +54,30 @@ app.mount(
     "/media/realistic-refs/files",
     StaticFiles(directory=_realistic_ref_dir),
     name="realistic-refs",
+)
+
+# HappyHorse video edit needs DashScope-fetchable public URLs for the starter
+# frames, their MP4 conversions, and hosts the generated segment videos.
+_source_ref_dir = reference_assets.source_ref_dir()
+if _source_ref_dir.exists():
+    app.mount(
+        "/media/reference/files",
+        StaticFiles(directory=str(_source_ref_dir)),
+        name="reference-source",
+    )
+_reference_mp4_dir = get_settings().reference_mp4_dir
+os.makedirs(_reference_mp4_dir, exist_ok=True)
+app.mount(
+    "/media/reference-mp4/files",
+    StaticFiles(directory=_reference_mp4_dir),
+    name="reference-mp4",
+)
+_video_out_dir = get_settings().video_out_dir
+os.makedirs(_video_out_dir, exist_ok=True)
+app.mount(
+    "/media/video-edit/files",
+    StaticFiles(directory=_video_out_dir),
+    name="video-edit",
 )
 
 def _store() -> EpisodeStore:
@@ -106,6 +130,25 @@ class RunBody(BaseModel):
     suggested_tags: list[str] | None = None
 
 
+class VideoEditSegment(BaseModel):
+    segment_id: str
+    speaker_id: str | None = None
+    prompt: str
+    clip: str = Field(description="Starter clip path relative to the reference bank")
+    identity: str | None = Field(default=None, description="Identity starter frame path")
+    starter: str | None = Field(default=None, description="Pose starter frame path")
+    audio: str | None = Field(default=None, description="TTS clip URL to mux, if any")
+
+
+class VideoEditGenerateBody(BaseModel):
+    segments: list[VideoEditSegment] = Field(min_length=1)
+    resolution: str = "720P"
+    dry_run: bool = False
+    stitch: bool = True
+    background: bool = True
+    limit: int = Field(default=0, ge=0, description="0 generates every segment")
+
+
 class RealisticRefsGenerateBody(BaseModel):
     dry_run: bool = False
     limit: int = Field(default=0, ge=0, description="0 generates the whole bank")
@@ -142,6 +185,9 @@ def health() -> dict:
         "media_endpoints": True,
         "image_model": settings.qwen_image_edit_model,
         "image_ready": bool(settings.qwen_dashscope_api_key),
+        "video_model": settings.qwen_video_edit_model,
+        "video_ready": bool(settings.qwen_dashscope_api_key),
+        "ffmpeg": bool(video_edit.ffmpeg_path()),
     }
 
 
@@ -197,6 +243,68 @@ async def generate_realistic_refs(body: RealisticRefsGenerateBody) -> dict:
 @app.get("/media/realistic-refs/jobs/{job_id}")
 def realistic_refs_job(job_id: str) -> dict:
     job = reference_assets.JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    return job
+
+
+@app.get("/media/video-edit/status")
+def video_edit_status() -> dict:
+    return video_edit.status(get_settings())
+
+
+@app.get("/media/video-edit/manifest.json")
+def video_edit_manifest():
+    file = video_edit.video_out_dir(get_settings()) / "manifest.json"
+    if not file.exists():
+        raise HTTPException(status_code=404, detail="video manifest not generated")
+    return FileResponse(file, media_type="application/json")
+
+
+@app.post("/media/video-edit/generate")
+async def generate_video_edit(body: VideoEditGenerateBody, request: Request) -> dict:
+    settings = get_settings()
+    if not body.dry_run and not settings.qwen_dashscope_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Qwen/DashScope key is not configured on this backend",
+        )
+    base_url = settings.public_base_url or str(request.base_url).rstrip("/")
+    # Railway terminates TLS at the proxy; DashScope must fetch over https.
+    if base_url.startswith("http://") and "localhost" not in base_url and "127.0.0.1" not in base_url:
+        base_url = "https://" + base_url[len("http://"):]
+    segments = [s.model_dump() for s in body.segments]
+    if body.limit:
+        segments = segments[: body.limit]
+
+    kwargs = {
+        "base_url": base_url,
+        "segments": segments,
+        "resolution": body.resolution,
+        "dry_run": body.dry_run,
+        "stitch_output": body.stitch,
+    }
+    if body.background:
+        job = video_edit.create_job()
+        asyncio.create_task(video_edit.run_job(job["job_id"], settings, **kwargs))
+        return {"status": "queued", "job": job}
+
+    try:
+        manifest = await video_edit.generate(settings, **kwargs)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return {
+        "status": "succeeded",
+        "segments": len(manifest.get("segments", [])),
+        "conversation": manifest.get("conversation"),
+        "manifest_url": "/media/video-edit/manifest.json",
+        "files_url": "/media/video-edit/files/",
+    }
+
+
+@app.get("/media/video-edit/jobs/{job_id}")
+def video_edit_job(job_id: str) -> dict:
+    job = video_edit.VIDEO_JOBS.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
     return job

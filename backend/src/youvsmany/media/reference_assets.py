@@ -398,6 +398,12 @@ async def download(client: httpx.AsyncClient, url: str, file: Path) -> None:
     file.write_bytes(response.content)
 
 
+# How many image-edit requests may be in flight at once. Identity-anchor
+# dependencies are respected by running each priority tier to completion before
+# the next starts, so shots inside a tier are safe to parallelize.
+CONCURRENCY = int(os.getenv("YVM_IMAGE_CONCURRENCY", "3"))
+
+
 async def generate(
     settings: Settings,
     *,
@@ -406,6 +412,7 @@ async def generate(
     overwrite: bool = False,
     delay_ms: int = 2000,
     size: str = "1080*1920",
+    concurrency: int = CONCURRENCY,
     progress: Any | None = None,
 ) -> dict[str, Any]:
     if not dry_run and not settings.qwen_dashscope_api_key:
@@ -426,8 +433,13 @@ async def generate(
         "dry_run": dry_run,
         "shots": [],
     }
+    # Keep manifest order stable (by plan index) even though tasks finish out
+    # of order under concurrency.
+    results: dict[int, dict[str, Any]] = {}
+    counters = {"done": 0, "failed": 0}
 
     def flush() -> None:
+        manifest["shots"] = [results[i] for i in sorted(results)]
         manifest["generated_count"] = sum(
             1 for s in manifest["shots"] if s.get("status") in {"generated", "existing"}
         )
@@ -441,48 +453,22 @@ async def generate(
             data_url_cache[file] = image_data_url(file)
         return data_url_cache[file]
 
-    failed = 0
-    async with httpx.AsyncClient(timeout=settings.request_timeout_s) as client:
-        for index, item in enumerate(plan):
-            output_file = out_dir / item["output_rel"]
-            if progress:
-                progress(
-                    {
-                        "current": index + 1,
-                        "total": len(plan),
-                        "path": item["output_rel"],
-                        "failed": failed,
-                    }
-                )
+    async def run_shot(client: httpx.AsyncClient, index: int, item: dict[str, Any]) -> None:
+        output_file = out_dir / item["output_rel"]
 
-            if output_file.exists() and not overwrite:
-                manifest["shots"].append(
-                    {
-                        **item["shot"],
-                        "realistic": item["output_rel"],
-                        "seed": item["seed"],
-                        "prompt": item["prompt"],
-                        "status": "existing",
-                    }
-                )
-                flush()
-                continue
-
-            if dry_run:
-                manifest["shots"].append(
-                    {
-                        **item["shot"],
-                        "realistic": item["output_rel"],
-                        "seed": item["seed"],
-                        "prompt": item["prompt"],
-                        "status": "planned",
-                    }
-                )
-                flush()
-                continue
-
+        if output_file.exists() and not overwrite:
+            results[index] = {
+                **item["shot"], "realistic": item["output_rel"], "seed": item["seed"],
+                "prompt": item["prompt"], "status": "existing",
+            }
+        elif dry_run:
+            results[index] = {
+                **item["shot"], "realistic": item["output_rel"], "seed": item["seed"],
+                "prompt": item["prompt"], "status": "planned",
+            }
+        else:
             # Prefer the already-generated realistic close shot as the identity
-            # anchor; the plan ordering guarantees close shots run first.
+            # anchor; earlier tiers finish before this one starts, so it exists.
             identity_realistic = (
                 out_dir / item["identity_output_rel"] if item["identity_output_rel"] else None
             )
@@ -498,45 +484,49 @@ async def generate(
                     cached_data_url(identity_file),
                     cached_data_url(item["source_starter"]),
                 ]
-
             try:
                 result, used_prompt = await request_edit_with_retry(
-                    client,
-                    settings,
-                    input_images=input_images,
-                    prompt=item["prompt"],
-                    fallback_prompt=item["fallback_prompt"],
-                    seed=item["seed"],
-                    size=size,
+                    client, settings, input_images=input_images, prompt=item["prompt"],
+                    fallback_prompt=item["fallback_prompt"], seed=item["seed"], size=size,
                 )
                 urls = output_urls(result)
                 if not urls:
                     raise RuntimeError(f"No output URL in response: {result}")
                 await download(client, urls[0], output_file)
-                manifest["shots"].append(
-                    {
-                        **item["shot"],
-                        "realistic": item["output_rel"],
-                        "seed": item["seed"],
-                        "prompt": used_prompt,
-                        "status": "generated",
-                    }
-                )
+                results[index] = {
+                    **item["shot"], "realistic": item["output_rel"], "seed": item["seed"],
+                    "prompt": used_prompt, "status": "generated",
+                }
             except Exception as exc:
-                failed += 1
-                manifest["shots"].append(
-                    {
-                        **item["shot"],
-                        "seed": item["seed"],
-                        "prompt": item["prompt"],
-                        "status": "failed",
-                        "error": str(exc),
-                    }
-                )
-            flush()
+                counters["failed"] += 1
+                results[index] = {
+                    **item["shot"], "seed": item["seed"], "prompt": item["prompt"],
+                    "status": "failed", "error": str(exc),
+                }
 
-            if index < len(plan) - 1 and delay_ms > 0:
-                await asyncio.sleep(delay_ms / 1000)
+        counters["done"] += 1
+        if progress:
+            progress({
+                "current": counters["done"], "total": len(plan),
+                "path": item["output_rel"], "failed": counters["failed"],
+            })
+        flush()
+
+    # Group the (priority-sorted) plan into tiers so a dependent angle never
+    # runs before its speaker's realistic close image has been written.
+    tiers: dict[int, list[tuple[int, dict[str, Any]]]] = {}
+    for index, item in enumerate(plan):
+        tiers.setdefault(plan_priority(item["shot"]), []).append((index, item))
+
+    semaphore = asyncio.Semaphore(max(1, concurrency))
+
+    async def guarded(client: httpx.AsyncClient, index: int, item: dict[str, Any]) -> None:
+        async with semaphore:
+            await run_shot(client, index, item)
+
+    async with httpx.AsyncClient(timeout=settings.request_timeout_s) as client:
+        for _priority in sorted(tiers):
+            await asyncio.gather(*(guarded(client, i, it) for i, it in tiers[_priority]))
 
     flush()
     return manifest

@@ -67,6 +67,43 @@ def test_failed_shot_is_recorded_and_run_continues(tmp_path, monkeypatch):
     assert len(calls) == 4
 
 
+def test_concurrent_generation_preserves_order_and_runs_closes_first(tmp_path, monkeypatch):
+    settings = Settings(
+        qwen_dashscope_api_key="test-key", realistic_ref_dir=str(tmp_path / "realistic-v1")
+    )
+    started: list[str] = []
+    active = {"now": 0, "max": 0}
+
+    async def tracking_edit(client, settings, input_images, prompt, seed, size):
+        active["now"] += 1
+        active["max"] = max(active["max"], active["now"])
+        started.append(prompt)
+        await asyncio.sleep(0.01)  # let siblings overlap
+        active["now"] -= 1
+        return {
+            "output": {
+                "choices": [{"message": {"content": [{"image": "https://example.com/x.png"}]}}]
+            }
+        }
+
+    async def fake_download(client, url, file):
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(b"png")
+
+    monkeypatch.setattr(reference_assets, "request_edit", tracking_edit)
+    monkeypatch.setattr(reference_assets, "download", fake_download)
+
+    manifest = asyncio.run(reference_assets.generate(settings, concurrency=4, delay_ms=0))
+
+    # Every source shot produced a generated entry.
+    assert manifest["failed_count"] == 0
+    assert manifest["generated_count"] == len(manifest["shots"])
+    assert all(s["status"] == "generated" for s in manifest["shots"])
+    # Concurrency actually overlapped requests within a tier.
+    assert active["max"] > 1
+    assert (tmp_path / "realistic-v1" / "manifest.json").exists()
+
+
 def test_moderation_rejection_retries_with_fallback_prompt(tmp_path, monkeypatch):
     settings = Settings(
         qwen_dashscope_api_key="test-key", realistic_ref_dir=str(tmp_path / "realistic-v1")

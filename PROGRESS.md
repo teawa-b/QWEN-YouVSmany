@@ -75,23 +75,36 @@ Sub-tasks:
       speaker slots, so image/video guided generation can keep characters
       consistent from scene to scene. Current bank lives at
       `frontend/assets/reference/vertical-v1/` with 19 PNG/WebM references.
-- [ ] **Realistic character reference bank**: Qwen Image Edit Max pass that
+- [x] **Realistic character reference bank**: Qwen Image Edit Max pass that
       converts the 9:16 starter frames into photorealistic debate-show images
-      while preserving speaker identity across all angles.
-      Backend media endpoints now exist so Railway can generate this bank with
-      its server-side Qwen key.
-- [ ] **HappyHorse video-edit assembly**: per-segment payloads that combine the
-      runtime HD character images with source motion clips, then stitch the
-      edited segments into the full conversation video. Local mock preview is
-      implemented, and the mock segment clips can be exported to a vertical
-      WebM. Live Qwen Cloud generation still needs public media URLs and an API
-      key.
-- [ ] Drive the studio-set `.glb` itself (not just procedural/themed floor).
-- [ ] Add visemes / mouth-sync from the master audio (player currently uses
-      animation crossfade and talk movement).
+      while preserving speaker identity across all angles. Generated live on
+      Railway (18/19 shots; one profile angle persistently trips DashScope
+      moderation on the input frame and falls back to the starter). Generation
+      is parallelized by dependency tier with retry/backoff and partial-bank
+      resumption; `npm run pull:realistic-refs` downloads the generated bank
+      into `frontend/assets/reference/realistic-v1/` so it survives Railway's
+      ephemeral redeploys and the app serves it with no backend dependency.
+- [x] **HappyHorse video-edit assembly**: live Qwen Cloud generation is wired.
+      The backend converts each starter clip to MP4, serves it plus the
+      identity reference image as DashScope-fetchable URLs, submits per-segment
+      `happyhorse-1.0-video-edit` tasks (async create -> poll, bounded
+      concurrency, retry/backoff), muxes per-segment TTS audio, and stitches
+      the finished segments into `conversation.mp4` with ffmpeg. Exposed at
+      `/media/video-edit/*`; the web app's "Live HappyHorse generation" step
+      drives it and plays the result. The local mock preview and WebM export
+      remain as an offline fallback.
+- [x] Drive the studio-set `.glb` itself (not just procedural/themed floor).
+      The Three.js player now loads `scene_template.asset_url`, mounts the
+      selected premade set, and hides the fallback floor once the set is live.
+- [x] Add audio-reactive speech motion from the master audio. CosyVoice clips
+      are attached to a Web Audio analyser when available; the active speaker's
+      talk animation, jaw/head motion and subtle body pulse follow the live
+      audio envelope, with a synthetic fallback for browser speech playback.
 - [ ] **Capture**: full base edit, per-segment shot clips, hero stills.
-- [ ] **Visual QA tests**: camera correctness, 9:16 crop safety, deterministic
-      browser replay from the manifest.
+- [x] **Visual QA tests**: `npm run visual:qa` mounts the manifest-driven
+      Three.js player in a browser, verifies the studio `.glb` loaded, checks a
+      nonblank 9:16-safe canvas, validates the local realistic bank, and writes
+      a screenshot under `output/playwright/`.
 
 ## What's Done (Phase 1 Recap)
 

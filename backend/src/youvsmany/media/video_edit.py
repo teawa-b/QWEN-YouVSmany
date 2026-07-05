@@ -49,6 +49,9 @@ VIDEO_JOBS: dict[str, dict[str, Any]] = {}
 POLL_INTERVAL_S = 15
 POLL_TIMEOUT_S = 15 * 60
 MAX_CONCURRENT_TASKS = 2
+# HappyHorse requires a source video of at least 3s; the starter capture clips
+# are ~2s, so each is looped up to this target duration during MP4 conversion.
+MIN_CLIP_S = 4.0
 
 
 def video_out_dir(settings: Settings) -> Path:
@@ -96,8 +99,14 @@ def ensure_mp4(settings: Settings, clip_rel: str) -> Path:
         [
             ffmpeg,
             "-y",
+            # Loop the short source and trim to a fixed target so the clip clears
+            # HappyHorse's 3s minimum while staying well under its 15s cap.
+            "-stream_loop",
+            "-1",
             "-i",
             str(source),
+            "-t",
+            str(MIN_CLIP_S),
             "-c:v",
             "libx264",
             "-pix_fmt",

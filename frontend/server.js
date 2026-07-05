@@ -12,6 +12,15 @@ const types = {
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".webm": "video/webm",
+  ".mp4": "video/mp4",
+  ".glb": "model/gltf-binary",
+  ".gltf": "model/gltf+json",
 };
 
 function send(res, status, body, type = "text/plain; charset=utf-8") {

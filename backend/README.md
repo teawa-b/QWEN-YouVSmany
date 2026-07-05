@@ -28,6 +28,10 @@ pytest -q
 - `POST /media/realistic-refs/generate`
 - `GET /media/realistic-refs/jobs/{job_id}`
 - `GET /media/realistic-refs/manifest.json`
+- `GET /media/video-edit/status`
+- `POST /media/video-edit/generate`
+- `GET /media/video-edit/jobs/{job_id}`
+- `GET /media/video-edit/manifest.json`
 
 The web API is currently pinned to the deterministic mock provider while the UI
 is being refined.
@@ -36,6 +40,11 @@ The media endpoints let the hosted backend use its Qwen/DashScope key to
 generate the `qwen-image-edit-max` realistic 9:16 reference bank. Generated
 files are served from `/media/realistic-refs/files/` so the frontend can pass
 public backend URLs into HappyHorse without exposing secrets.
+
+The video-edit endpoints use Qwen Cloud `happyhorse-1.0-video-edit` with
+DashScope async tasks. They convert starter WebM clips to MP4 with ffmpeg,
+submit per-segment video edits, and stitch finished segments into
+`conversation.mp4` when ffmpeg is available.
 
 ## Railway
 

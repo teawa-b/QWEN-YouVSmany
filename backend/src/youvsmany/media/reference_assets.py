@@ -368,7 +368,7 @@ async def request_edit_with_retry(
     fallback_prompt: str,
     seed: int,
     size: str,
-    max_attempts: int = 5,
+    max_attempts: int = 7,
 ) -> tuple[dict[str, Any], str]:
     """Retry throttles/transients with backoff; retry moderation rejections once
     with the plain fallback prompt. Returns (result, prompt actually used)."""
@@ -400,8 +400,10 @@ async def download(client: httpx.AsyncClient, url: str, file: Path) -> None:
 
 # How many image-edit requests may be in flight at once. Identity-anchor
 # dependencies are respected by running each priority tier to completion before
-# the next starts, so shots inside a tier are safe to parallelize.
-CONCURRENCY = int(os.getenv("YVM_IMAGE_CONCURRENCY", "3"))
+# the next starts, so shots inside a tier are safe to parallelize. Kept low (2)
+# because the qwen-image-edit-max rate quota on this account throttles (429) at
+# 3 concurrent; the retry/backoff still absorbs occasional throttles at 2.
+CONCURRENCY = int(os.getenv("YVM_IMAGE_CONCURRENCY", "2"))
 
 
 async def generate(

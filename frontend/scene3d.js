@@ -21,6 +21,7 @@ const CROWN_TO_UPPER_BODY_Y = 0.38;
 const CLOSE_UPPER_BODY_DROP_Y = 0.44;
 const CLOSE_CAMERA_TABLE_OFFSET_Z = 1.4;
 const HEAD_BONE_NAMES = ["mixamorigHead", "Head"];
+const JAW_BONE_NAMES = ["mixamorigJaw", "Jaw", "jaw", "Bip001 Jaw"];
 
 // Themed studio look per premade set id (matches the manifest's scene_template).
 const THEMES = {
@@ -346,6 +347,7 @@ class StagePlayer {
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene3.add(floor);
+    this.baseFloor = floor;
 
     this.clock = new THREE.Clock();
     this._onResize = () => this._resize();
@@ -355,6 +357,7 @@ class StagePlayer {
   async _buildWorld() {
     const stage = new THREE.Group();
     this.scene3.add(stage);
+    await this._loadStudioSet(stage);
 
     // ---- table (poly.pizza, CC0) ----
     let tableDim = { width: 3.2, depth: 1.3, height: 0.75 };
@@ -395,6 +398,37 @@ class StagePlayer {
       ? Math.min(1.2, Math.max(0.82, frameYs.reduce((a, b) => a + b, 0) / frameYs.length))
       : headY - CROWN_TO_UPPER_BODY_Y;
     this.layout = { seatZ, headY, frameY, spanX };
+  }
+
+  async _loadStudioSet(stage) {
+    const ref = this.scene.scene_template || {};
+    const assetUrl = ref.asset_url || (ref.template_id ? `/assets/scenes/${ref.template_id}.glb` : "");
+    if (!assetUrl) return;
+    try {
+      const g = await loadGLB(assetUrl);
+      const set = g.scene.clone(true);
+      set.name = `studio_set_${ref.template_id || "custom"}`;
+      set.traverse((o) => {
+        if (o.isMesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
+          if (o.material) {
+            const mats = Array.isArray(o.material) ? o.material : [o.material];
+            for (const m of mats) {
+              if ("roughness" in m) m.roughness = Math.max(m.roughness ?? 0.75, 0.78);
+              if ("metalness" in m) m.metalness = Math.min(m.metalness ?? 0, 0.08);
+            }
+          }
+        }
+      });
+      stage.add(set);
+      this.stageSetLoaded = true;
+      this.stageSetUrl = assetUrl;
+      if (this.baseFloor) this.baseFloor.visible = false;
+    } catch (e) {
+      console.warn("[YVM3D] Studio set failed to load; using fallback floor", assetUrl, e);
+      this.stageSetLoaded = false;
+    }
   }
 
   _seat(charObj, x, z, faceY, assets, chairGLB) {
@@ -441,6 +475,7 @@ class StagePlayer {
     const box = new THREE.Box3().setFromObject(model);
     model.position.y -= box.min.y;
     model.position.z -= 0.08;
+    const baseModelY = model.position.y;
 
     // active-speaker floor ring in the character's colour
     const ring = new THREE.Mesh(
@@ -464,6 +499,12 @@ class StagePlayer {
       ring,
       headY: 1.3,
       frameY: 0.95,
+      jawBone: null,
+      headBone: null,
+      headBaseQ: null,
+      jawBaseQ: null,
+      baseModelY,
+      speechPhase: (id.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 17) * 0.37,
     };
     this._measureSeatedHead(character);
     this.chars.set(id, character);
@@ -475,6 +516,10 @@ class StagePlayer {
   _measureSeatedHead(ch) {
     ch.model.updateMatrixWorld(true);
     const head = findBone(ch.model, HEAD_BONE_NAMES);
+    ch.headBone = head || null;
+    ch.jawBone = findBone(ch.model, JAW_BONE_NAMES);
+    if (ch.headBone) ch.headBaseQ = ch.headBone.quaternion.clone();
+    if (ch.jawBone) ch.jawBaseQ = ch.jawBone.quaternion.clone();
     if (head) {
       const pos = new THREE.Vector3();
       head.getWorldPosition(pos);
@@ -656,6 +701,7 @@ class StagePlayer {
     if (!seg) return;
     if (this._holdTimer) clearTimeout(this._holdTimer);
     if (this._audio) { this._audio.onended = null; this._audio.pause(); this._audio = null; }
+    this._voiceAnalyser = null;
 
     const isCaption = seg.speaker_id === "caption";
     this._speakDur = Math.max(0.6, seg.end_s - seg.start_s) * 1000;
@@ -663,8 +709,11 @@ class StagePlayer {
 
     const audioRef = this._audioRefFor(seg);
     if (audioRef) {
-      const a = new Audio(audioRef);
+      const a = new Audio();
+      a.crossOrigin = "anonymous";
+      a.src = audioRef;
       this._audio = a;
+      this._bindAudioAnalyser(a);
       a.onended = () => this._next();
       a.onerror = () => this._speakWeb(seg);
       a.play().catch(() => this._speakWeb(seg));
@@ -727,7 +776,42 @@ class StagePlayer {
   _unlockAudio() {
     if (this._audioUnlocked) return;
     this._audioUnlocked = true;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext && !this._audioContext) this._audioContext = new AudioContext();
+    if (this._audioContext?.state === "suspended") this._audioContext.resume().catch(() => {});
     if (window.speechSynthesis) window.speechSynthesis.getVoices();
+  }
+
+  _bindAudioAnalyser(audio) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    try {
+      if (!this._audioContext) this._audioContext = new AudioContext();
+      const analyser = this._audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.62;
+      const source = this._audioContext.createMediaElementSource(audio);
+      source.connect(analyser);
+      analyser.connect(this._audioContext.destination);
+      this._voiceAnalyser = { analyser, data: new Uint8Array(analyser.frequencyBinCount) };
+      if (this._audioContext.state === "suspended") this._audioContext.resume().catch(() => {});
+    } catch {
+      this._voiceAnalyser = null;
+    }
+  }
+
+  _speechLevel(dt) {
+    if (this._voiceAnalyser) {
+      const { analyser, data } = this._voiceAnalyser;
+      analyser.getByteFrequencyData(data);
+      let sum = 0;
+      const hi = Math.min(data.length, 38);
+      for (let i = 2; i < hi; i += 1) sum += data[i];
+      return Math.max(0, Math.min(1, (sum / Math.max(1, hi - 2) - 18) / 105));
+    }
+    if (!this.playing || !this.activeId) return 0;
+    this._syntheticVoiceT = (this._syntheticVoiceT || 0) + dt;
+    return 0.35 + Math.max(0, Math.sin(this._syntheticVoiceT * 18)) * 0.42;
   }
 
   _toggleCamera() {
@@ -752,18 +836,37 @@ class StagePlayer {
       this.controls.target.lerp(this.camDesiredTarget, k);
     }
 
+    const speechLevel = this._speechLevel(dt);
     for (const [id, ch] of this.chars) {
       const speaking = id === this.activeId && this.playing;
-      const target = speaking ? 1 : 0;
+      const target = speaking ? Math.max(0.28, speechLevel) : 0;
       ch.talkW += (target - ch.talkW) * (1 - Math.pow(0.02, dt)); // smooth crossfade
       ch.talk.setEffectiveWeight(ch.talkW);
       ch.idle.setEffectiveWeight(1 - ch.talkW);
       ch.mixer.update(dt);
+      this._applySpeechMotion(ch, speaking ? speechLevel : 0);
       ch.ring.material.opacity += ((speaking ? 0.55 : 0) - ch.ring.material.opacity) * 0.15;
     }
 
     this.controls.update();
     this.renderer.render(this.scene3, this.camera);
+  }
+
+  _applySpeechMotion(ch, level) {
+    const pulse = Math.max(0, Math.min(1, level));
+    const t = performance.now() * 0.001 + ch.speechPhase;
+    if (ch.jawBone && ch.jawBaseQ) {
+      ch.jawBone.quaternion.copy(ch.jawBaseQ);
+      ch.jawBone.rotateX(pulse * 0.22);
+    }
+    if (ch.headBone && ch.headBaseQ) {
+      ch.headBone.quaternion.copy(ch.headBaseQ);
+      ch.headBone.rotateX(Math.sin(t * 8.0) * pulse * 0.018);
+      ch.headBone.rotateY(Math.sin(t * 5.5) * pulse * 0.012);
+    }
+    if (Number.isFinite(ch.baseModelY)) {
+      ch.model.position.y = ch.baseModelY + pulse * 0.008;
+    }
   }
 
   _canvasSize() {

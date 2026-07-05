@@ -1,9 +1,9 @@
 # You Vs Many - AI Debate Showrunner
 
 You Vs Many is a multi-agent debate pipeline for one-person-vs-many formats. The
-current implementation is Phase 1: debate intelligence. It creates a cast,
-private notes, a structured round plan, a locked transcript, scene cues,
-highlight candidates, and metrics.
+current implementation is late Phase 2: debate intelligence plus an audio-locked
+Three.js scene player, Qwen Cloud CosyVoice support, a persisted realistic
+reference-image bank, and live HappyHorse video-edit endpoints.
 
 The repo is split so the API and UI can be hosted separately:
 
@@ -57,11 +57,16 @@ It exposes:
 - `POST /episodes/{id}/lock`
 - `GET /episodes/{id}`
 - `GET /episodes/{id}/full`
+- `GET /media/realistic-refs/status`
+- `POST /media/realistic-refs/generate`
+- `GET /media/video-edit/status`
+- `POST /media/video-edit/generate`
 
 ## Frontend
 
-`frontend/index.html` is a static app. It can be opened directly or hosted by
-any static host.
+`frontend/index.html` is a static app. The Node server in `frontend/server.js`
+serves the app and media assets with the MIME types needed for WebM/MP4/GLB
+playback.
 
 For local development with the backend on port 8000:
 
@@ -144,9 +149,9 @@ Check `GET /health`; CosyVoice is available when it reports
 
 ## Roadmap
 
-Phase 2 audio/staging, Phase 3 still conversion, Phase 4 video transform,
-Phase 5 continuity and shorts, then integration/eval. The locked transcript is
-the artifact every downstream stage inherits.
+Phase 2 is nearly complete. The remaining core item is the final capture/export
+pass for a full base edit, per-segment clips, and hero stills. Later phases are
+continuity/shorts packaging, integration evaluation, and submission freeze.
 
 ## License
 

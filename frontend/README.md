@@ -5,10 +5,20 @@ Static single-page app for running and inspecting debate episodes.
 ## Run Locally
 
 ```bash
-python -m http.server 5173
+npm start
 ```
 
 Open `http://127.0.0.1:5173`.
+
+## Visual QA
+
+```bash
+npm run visual:qa
+```
+
+This browser check mounts the Three.js player from a scene manifest, verifies
+that the premade GLB studio set loaded, checks the 9:16 crop area, and confirms
+that the local realistic reference bank is served with valid media MIME types.
 
 ## Backend API URL
 

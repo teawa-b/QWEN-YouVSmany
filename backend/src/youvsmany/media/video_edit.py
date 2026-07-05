@@ -268,7 +268,7 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
         subprocess.run(cmd, check=True, capture_output=True)
         parts.append(part)
     list_file = work / "concat.txt"
-    list_file.write_text("".join(f"file '{p.as_posix()}'\n" for p in parts), encoding="utf-8")
+    list_file.write_text("".join(f"file '{p.name}'\n" for p in parts), encoding="utf-8")
     output = out_dir / "conversation.mp4"
     subprocess.run(
         [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(list_file), "-c", "copy", str(output)],

@@ -187,6 +187,33 @@ def test_successful_segment_downloads_video(tmp_path, monkeypatch):
     assert manifest["conversation"] == "conversation.mp4"
 
 
+def test_stitch_writes_concat_paths_relative_to_work_dir(tmp_path, monkeypatch):
+    settings = make_settings(tmp_path)
+    out_dir = tmp_path / "videos"
+    segment = out_dir / "segments" / "000_seg_00.mp4"
+    segment.parent.mkdir(parents=True)
+    segment.write_bytes(b"mp4")
+    concat_files = []
+
+    def fake_run(cmd, check, capture_output):
+        if "-f" in cmd and "concat" in cmd:
+            list_file = video_edit.Path(cmd[cmd.index("-i") + 1])
+            concat_files.append(list_file.read_text(encoding="utf-8"))
+        return video_edit.subprocess.CompletedProcess(cmd, 0, b"", b"")
+
+    monkeypatch.setattr(video_edit, "ffmpeg_path", lambda: "ffmpeg")
+    monkeypatch.setattr(video_edit.subprocess, "run", fake_run)
+
+    result = video_edit.stitch(
+        settings,
+        [{"status": "generated", "video": "segments/000_seg_00.mp4"}],
+        out_dir,
+    )
+
+    assert result == "conversation.mp4"
+    assert concat_files == ["file 'part_000.mp4'\n"]
+
+
 def test_generate_endpoint_dry_run_returns_job(monkeypatch, tmp_path):
     monkeypatch.setenv("YVM_VIDEO_OUT_DIR", str(tmp_path / "videos"))
     monkeypatch.setenv("YVM_REFERENCE_MP4_DIR", str(tmp_path / "reference-mp4"))

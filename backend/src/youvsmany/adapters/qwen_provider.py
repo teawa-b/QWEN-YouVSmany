@@ -22,10 +22,12 @@ class QwenProvider:
         model: str,
         *,
         timeout_s: float = 60.0,
+        enable_thinking: bool = False,
     ) -> None:
         if not api_key:
             raise ValueError("QWEN_API_KEY is required for the qwen provider")
         self.model = model
+        self._enable_thinking = enable_thinking
         self._url = base_url.rstrip("/") + "/chat/completions"
         self._client = httpx.Client(
             timeout=timeout_s,
@@ -48,6 +50,9 @@ class QwenProvider:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            # Model Studio's raw OpenAI-compatible HTTP surface accepts this as
+            # a top-level field. qwen3.7-plus otherwise thinks by default.
+            "enable_thinking": self._enable_thinking,
         }
         if seed is not None:
             body["seed"] = seed

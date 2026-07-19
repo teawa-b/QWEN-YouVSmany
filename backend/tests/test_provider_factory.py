@@ -21,3 +21,32 @@ def test_qwen_setting_builds_live_text_provider():
         assert isinstance(provider, QwenProvider)
     finally:
         provider.close()
+
+
+def test_qwen_disables_hybrid_thinking_for_fast_showrunner(monkeypatch):
+    provider = build_provider(
+        Settings(provider="qwen", qwen_api_key="sk-test", qwen_enable_thinking=False)
+    )
+    sent = {}
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "choices": [{"message": {"content": "Ready."}}],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 1},
+            }
+
+    def fake_post(url, *, json):
+        sent.update(json)
+        return Response()
+
+    monkeypatch.setattr(provider._client, "post", fake_post)
+    try:
+        provider.complete([{"role": "user", "content": "Make the short."}])
+    finally:
+        provider.close()
+
+    assert sent["enable_thinking"] is False

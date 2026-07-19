@@ -19,6 +19,7 @@ def build_provider(settings: Settings | None = None) -> Provider:
             base_url=settings.qwen_base_url,
             model=settings.qwen_text_model,
             timeout_s=settings.request_timeout_s,
+            enable_thinking=settings.qwen_enable_thinking,
         )
     return MockProvider()
 

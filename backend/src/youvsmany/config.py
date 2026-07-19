@@ -13,6 +13,13 @@ except Exception:  # pragma: no cover
     pass
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Settings:
     provider: str = os.getenv("YVM_PROVIDER", "mock").lower()
@@ -21,6 +28,9 @@ class Settings:
         "QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     )
     qwen_text_model: str = os.getenv("QWEN_TEXT_MODEL", "qwen3.7-plus")
+    # qwen3.7-plus enables hybrid thinking by default. The showrunner schema is
+    # intentionally compact, so direct generation is much faster and cheaper.
+    qwen_enable_thinking: bool = _env_bool("QWEN_ENABLE_THINKING", False)
     # TTS (Phase 2): Qwen Cloud CosyVoice via the DashScope tts_v2 SDK.
     qwen_dashscope_url: str = os.getenv(
         "QWEN_DASHSCOPE_URL", "https://dashscope-intl.aliyuncs.com/api/v1"

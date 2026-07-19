@@ -29,7 +29,12 @@ criterion is met.
 - [x] Added strict 30-second validation and render trimming at every boundary.
 - [x] Made the final 9:16 cut the primary result, with preview, render, playback,
       and MP4 download controls in one workspace.
-- [x] Backend regression suite: **65 tests passing**.
+- [x] Replaced the production path's serial per-character/per-turn Qwen calls
+      with one schema-validated showrunner pass that casts and scripts all seven
+      beats together; the granular multi-agent path remains for offline evals.
+- [x] Preserved a verified 23.19-second, 1080x1920 HappyHorse reviewer cut in
+      the deployed Examples screen so it survives backend restarts.
+- [x] Backend regression suite: **68 tests passing**.
 
 ## Phase Status
 
@@ -85,8 +90,9 @@ Sub-tasks:
 - [x] **Close-up camera framing**: seated head height is measured from the
       Mixamo head bone instead of the animated bounding box (raised hands were
       inflating the target), and close shots now frame the visible upper body.
-- [x] **Backend tests**: 65 tests passing for state machine, scene contract,
-      voice mapping, determinism, schemas, safety and metrics.
+- [x] **Backend tests**: 68 tests passing for showrunner coordination, provider
+      request mode, state machine, scene contract, voice mapping, determinism,
+      schemas, safety and metrics.
 - [x] **9:16 reference asset bank**: starter images and silent speaking-angle
       clips for intro, main speaker, second speaker and third speaker slots
       (plus legacy fourth-speaker references), so image/video guided generation can keep characters

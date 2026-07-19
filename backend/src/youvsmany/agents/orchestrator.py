@@ -11,7 +11,7 @@ import uuid
 from youvsmany.adapters.base import Provider
 from youvsmany.adapters.factory import build_provider, build_tts_provider
 from youvsmany.adapters.tts_base import TTSProvider
-from youvsmany.agents import character_builder, director, stage_director, topic_producer
+from youvsmany.agents import character_builder, director, showrunner, stage_director, topic_producer
 from youvsmany.agents.highlights import detect_highlights
 from youvsmany.agents.state_machine import DebateRunner
 from youvsmany.contracts.brief import ShowBrief
@@ -108,6 +108,17 @@ def run_full(
 ) -> Episode:
     provider = provider or build_provider()
     ep = create_episode(brief, provider=provider)
+    if provider.name == "qwen":
+        draft, it, ot, retries = showrunner.draft_episode(
+            provider,
+            brief,
+            suggested_tags=suggested_tags,
+        )
+        _account(ep, it, ot, retries, calls=1)
+        showrunner.apply_draft(ep, draft, suggested_tags=suggested_tags)
+        lock_episode(ep)
+        stage_episode(ep, tts=tts)
+        return ep
     prepare_episode(ep, provider=provider, suggested_tags=suggested_tags)
     run_debate(ep, provider=provider)
     lock_episode(ep)

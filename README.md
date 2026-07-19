@@ -7,10 +7,10 @@ one vertical episode. Every layer enforces the product contract: the finished
 video can never run longer than 30 seconds.
 
 The current implementation is a complete vertical slice built for the AI
-Showrunner track: multi-agent debate intelligence, an audio-locked Three.js
-previsualization player, Qwen Cloud CosyVoice support, a persisted realistic
-character bank, live HappyHorse video-edit endpoints, download-ready final
-cuts, and a submission packaging workflow.
+Showrunner track: a fast live-Qwen cast-and-script pass, deterministic
+multi-agent evaluation, an audio-locked Three.js previsualization player, Qwen
+Cloud CosyVoice, a persisted realistic character bank, live HappyHorse
+video-edit endpoints, download-ready final cuts, and submission packaging.
 
 The repo is split so the API and UI can be hosted separately:
 
@@ -157,6 +157,7 @@ YVM_PROVIDER=qwen
 # QWEN_API_KEY=...
 # QWEN_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 # QWEN_TEXT_MODEL=qwen3.7-plus
+# QWEN_ENABLE_THINKING=false  # fast one-pass showrunner; opt in only if needed
 ```
 
 For the full hosted showrunner, enable Qwen for both the agent pipeline and the

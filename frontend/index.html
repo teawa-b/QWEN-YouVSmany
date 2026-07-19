@@ -600,16 +600,31 @@
     <!-- ============ DEMO ============ -->
     <section class="screen" id="screen-demo" style="--ac:var(--purple)">
       <div class="screen-head">
-        <div class="kicker">Sample episodes</div>
-        <h1>Demo</h1>
-        <p>Run a preset brief and watch the generated episode.</p>
+        <div class="kicker">Example episode</div>
+        <h1>See the finished cut.</h1>
+        <p>A real 23-second HappyHorse episode, preserved for reviewers.</p>
       </div>
       <div class="card">
-        <div class="runbar" style="margin-top:0">
-          <button class="run" id="demoRun">Play the classic demo</button>
+        <div class="demo-showcase">
+          <div class="demo-reel">
+            <video id="demoReel" controls playsinline preload="metadata"
+              poster="/assets/reference/realistic-v1/main_speaker/protagonist/close/realistic.png"
+              src="/assets/review/ai-showrunner-30s.mp4"></video>
+            <span>YVM / REVIEWER CUT</span>
+          </div>
+          <div class="demo-copy">
+            <div class="kicker">Generated end to end</div>
+            <h2>Late-night work beats early mornings.</h2>
+            <p>Scripted, cast, voiced, shot and stitched by the showrunner pipeline—not a concept mockup.</p>
+            <div class="demo-facts"><span><b>23.19s</b> runtime</span><span><b>3</b> voices</span><span><b>9:16</b> final</span></div>
+            <button class="run" id="demoRun">Play reviewer cut <span>→</span></button>
+          </div>
+        </div>
+        <div class="runbar legacy-demo-cta" style="margin-top:0">
+          <button class="run" id="demoPresetRun">Play the classic demo</button>
           <span class="hint">Pineapple belongs on pizza · 3 voices · 30s max</span>
         </div>
-        <h2 class="sec">Or pick a preset</h2>
+        <h2 class="sec">Direct another episode</h2>
         <div class="demo-list" id="demoList"></div>
       </div>
     </section>
@@ -787,7 +802,11 @@ function startDemo(s){
     b.onclick = ()=>startDemo(s);
     list.appendChild(b);
   });
-  $("#demoRun").onclick = ()=>startDemo(STARTERS[0]);
+  $("#demoRun").onclick = ()=>{
+    const reel = $("#demoReel");
+    reel.muted = false;
+    reel.play().catch(()=>{});
+  };
 })();
 
 // ---- settings screen ----

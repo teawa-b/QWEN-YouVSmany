@@ -8,6 +8,10 @@ All creator-facing and generated final videos are capped at 30 seconds. The
 packaging flags below can make a smoke artifact shorter, but never extend the
 product beyond that ceiling.
 
+The deployed Examples screen also carries the verified HappyHorse reviewer cut
+at `frontend/assets/review/ai-showrunner-30s.mp4` (23.19 seconds, 1080x1920), so
+the hackathon proof survives backend restarts and ephemeral render storage.
+
 ```bash
 cd frontend
 npm run package:episode -- \

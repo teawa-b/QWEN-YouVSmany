@@ -149,23 +149,22 @@ from that variable. The browser then calls the hosted backend for `/health` and
 ## Provider Setup
 
 The backend supports live Qwen or offline mock through the provider layer. The
-web API is pinned to mock right now, but the CLI/eval path can still use env
-configuration:
+web API, CLI and eval path all honor the same environment configuration:
 
 ```bash
 cp backend/.env.example backend/.env
-# YVM_PROVIDER=qwen
+YVM_PROVIDER=qwen
 # QWEN_API_KEY=...
 # QWEN_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 # QWEN_TEXT_MODEL=qwen3.7-plus
 ```
 
-For hosted browser playback, set the Qwen key on the backend service even when
-`YVM_PROVIDER` stays `mock`. The API will keep deterministic mock debate text
-but use Qwen Cloud CosyVoice for the scene audio timeline:
+For the full hosted showrunner, enable Qwen for both the agent pipeline and the
+CosyVoice scene audio timeline:
 
 ```text
 QWEN_API_KEY=sk-...
+YVM_PROVIDER=qwen
 YVM_TTS_PROVIDER=qwen
 QWEN_TTS_MODEL=cosyvoice-v3-plus
 QWEN_WS_URL=wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference

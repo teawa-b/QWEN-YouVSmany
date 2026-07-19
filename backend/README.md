@@ -68,6 +68,7 @@ QWEN_TTS_MODEL=cosyvoice-v3-plus
 QWEN_WS_URL=wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference
 ```
 
-The web API can keep `YVM_PROVIDER=mock` for deterministic debate text. When a
-Qwen key is present, scene staging uses CosyVoice clips and `/health` reports
-`tts_provider: qwen` with `tts_ready: true`.
+Set `YVM_PROVIDER=qwen` to run the browser showrunner's script, cast and debate
+generation through Qwen. When a Qwen key is present, scene staging also uses
+CosyVoice clips and `/health` reports both `provider: qwen` and
+`tts_provider: qwen`.

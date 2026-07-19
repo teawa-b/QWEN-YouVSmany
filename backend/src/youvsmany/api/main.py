@@ -22,8 +22,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from youvsmany.adapters.mock_provider import MockProvider
-from youvsmany.adapters.factory import effective_tts_provider
+from youvsmany.adapters.base import Provider
+from youvsmany.adapters.factory import build_provider, effective_tts_provider
 from youvsmany.agents import orchestrator
 from youvsmany.agents.orchestrator import SafetyRejected
 from youvsmany.config import get_settings
@@ -96,9 +96,9 @@ def _store() -> EpisodeStore:
     return EpisodeStore(get_settings().run_dir)
 
 
-def _provider() -> MockProvider:
-    """Pin the web app to deterministic mock generation while the UI is refined."""
-    return MockProvider()
+def _provider() -> Provider:
+    """Use the configured showrunner provider for browser and API episodes."""
+    return build_provider(get_settings())
 
 
 def _episode_view(ep) -> dict:

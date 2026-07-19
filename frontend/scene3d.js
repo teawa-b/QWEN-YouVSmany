@@ -1,6 +1,6 @@
 // You Vs Many — Three.js scene player.
 // Drives the renderer-neutral SceneManifest as a real 3D stage: a rectangular
-// debate table with 3 challengers on one side and the lone protagonist on the
+// debate table with the challengers on one side and the lone protagonist on the
 // other. Characters are skinned Mixamo humanoids (FBX) driven by an animation
 // mixer (seated idle <-> talking crossfade), camera cuts + captions from the
 // manifest, and per-character voices (Qwen Cloud CosyVoice audio when the
@@ -377,7 +377,7 @@ class StagePlayer {
     const chairGLB = await loadGLB("/assets/props/chair.glb").catch(() => null);
     const assets = await getCharacterAssets();
 
-    // ---- seats: 3 challengers (far, -Z) + protagonist (near, +Z) ----
+    // ---- seats: challengers (far, -Z) + protagonist (near, +Z) ----
     const cast = this.data.cast;
     const protagonist = cast.find((c) => c.role === "protagonist") || cast[0];
     const challengers = cast.filter((c) => c.role !== "protagonist");

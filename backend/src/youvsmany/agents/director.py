@@ -51,8 +51,8 @@ def build_round_plan(
 
 
 def _target_turns(duration_s: int) -> int:
-    """12-20 turns for 60-120s (blueprint 3.3)."""
-    return max(12, min(20, round(12 + (duration_s - 60) / 60 * 8)))
+    """Six or seven sharp beats for a complete episode no longer than 30s."""
+    return max(6, min(7, round(6 + (duration_s - 20) / 10)))
 
 
 # --- Moderator control rules (blueprint 4.5) --------------------------
@@ -188,20 +188,9 @@ def answer_follow_up_objective(tag: str) -> str:
 def crossfire_pairs(num_challengers: int, target_turns: int) -> int:
     """How many challenger->protagonist follow-up pairs to run.
 
-    Every challenger gets at least one follow-up after the opening pressure wave.
-    Extra pairs are added round-robin toward the director's target, staying inside
-    the locked 12-24 turn window.
+    A 30-second episode has room for one follow-up pair after both challengers
+    make their opening pressure. This keeps a real back-and-forth without turning
+    the short into a speed-read.
     """
-    n = max(1, num_challengers)
-    pairs = n
-    fixed_turns = n + 4  # shared claim + opening wave + room answer + closing
-
-    def total(pair_count: int) -> int:
-        return fixed_turns + pair_count * 2
-
-    target = max(12, min(20, target_turns))
-    while total(pairs) + 2 <= min(target, CEILING_TURNS):
-        pairs += 1
-    while total(pairs) < 12 and total(pairs) + 2 <= CEILING_TURNS:
-        pairs += 1
-    return pairs
+    del num_challengers, target_turns
+    return 1

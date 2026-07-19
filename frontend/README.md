@@ -1,6 +1,9 @@
 # You Vs Many Frontend
 
-Static single-page app for running and inspecting debate episodes.
+Static single-page showrunner for creating and watching 30-second debate
+episodes. The audience flow is intentionally video-first: one brief produces a
+three-person, seven-beat, vertical final cut with preview, render and download
+controls kept together.
 
 Three.js is vendored at `vendor/three/` (v0.160.0, build + the addons the
 player uses), so the app has no runtime CDN dependency and works offline.

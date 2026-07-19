@@ -44,3 +44,4 @@ package-lock.json
 .idea/
 .vscode/
 .claude/
+.playwright-cli/

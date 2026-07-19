@@ -4,6 +4,10 @@
 episode. It uses the running backend for the locked episode, then drives the
 Three.js player in Playwright to capture the visual deliverables.
 
+All creator-facing and generated final videos are capped at 30 seconds. The
+packaging flags below can make a smoke artifact shorter, but never extend the
+product beyond that ceiling.
+
 ```bash
 cd frontend
 npm run package:episode -- \

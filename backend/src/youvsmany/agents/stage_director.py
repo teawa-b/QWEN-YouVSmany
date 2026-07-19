@@ -31,7 +31,11 @@ from youvsmany.contracts.scene import (
     VisualPriority,
 )
 from youvsmany.media.characters import character_ref_payload, select_character_visuals
-from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID, Transcript
+from youvsmany.contracts.transcript import (
+    CAPTION_SPEAKER_ID,
+    MAX_EPISODE_DURATION_S,
+    Transcript,
+)
 
 # Qwen Cloud CosyVoice-v3-plus system voices: one male (longanyang), one female
 # (longanhuan), both English-capable.
@@ -73,13 +77,18 @@ def build_scene_manifest(ep: Episode, tts: TTSProvider) -> SceneManifest:
     audio: list[AudioCue] = []
     cursor = 0.0
     for turn in ep.transcript.turns:
+        if cursor >= MAX_EPISODE_DURATION_S:
+            break
         is_caption = turn.speaker_id == CAPTION_SPEAKER_ID
         if is_caption:
-            duration = round(max(_CAPTION_HOLD_FLOOR_S, turn.word_count / WORDS_PER_SECOND), 3)
+            duration = min(
+                round(max(_CAPTION_HOLD_FLOOR_S, turn.word_count / WORDS_PER_SECOND), 3),
+                MAX_EPISODE_DURATION_S - cursor,
+            )
         else:
             voice_id = voice_map[turn.speaker_id]
             res = tts.synthesize(turn.text, voice_id=voice_id, seed=ep.brief.seed + turn.index)
-            duration = res.duration_s
+            duration = min(res.duration_s, max(0.0, MAX_EPISODE_DURATION_S - cursor))
             audio.append(
                 AudioCue(
                     dialogue_id=turn.turn_id,
@@ -124,6 +133,9 @@ def build_scene_manifest(ep: Episode, tts: TTSProvider) -> SceneManifest:
                 scene_cue=turn.scene_cue,
             )
         )
+
+        if cursor >= MAX_EPISODE_DURATION_S:
+            break
 
     return SceneManifest(
         episode_id=ep.episode_id,

@@ -36,6 +36,7 @@ from typing import Any
 import httpx
 
 from youvsmany.config import Settings
+from youvsmany.contracts.transcript import MAX_EPISODE_DURATION_S
 from youvsmany.media.reference_assets import (
     QwenRequestError,
     RETRYABLE_CODES,
@@ -53,6 +54,7 @@ MAX_CONCURRENT_TASKS = 2
 # HappyHorse requires a source video of at least 3s; the starter capture clips
 # are ~2s, so each is looped up to this target duration during MP4 conversion.
 MIN_CLIP_S = 4.0
+MAX_EPISODE_SEGMENTS = 7
 
 
 def video_out_dir(settings: Settings) -> Path:
@@ -81,6 +83,7 @@ def status(settings: Settings) -> dict[str, Any]:
         "files_url": "/media/video-edit/files/",
         "segments": len(manifest.get("segments", [])) if manifest else 0,
         "conversation": manifest.get("conversation") if manifest else None,
+        "max_duration_s": MAX_EPISODE_DURATION_S,
     }
 
 
@@ -360,6 +363,9 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
     cues: list[dict[str, Any]] = []
     cursor = 0.0
     for i, entry in enumerate(videos):
+        remaining = MAX_EPISODE_DURATION_S - cursor
+        if remaining <= 0:
+            break
         segment_file = out_dir / entry["video"]
         part = work / f"part_{i:03d}.mp4"
         cmd = [ffmpeg, "-y", "-i", str(segment_file)]
@@ -368,8 +374,15 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
             cmd += ["-i", str(audio_file), "-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac", "-shortest"]
         else:
             cmd += ["-an"]
-        # Normalise every part so concat never mixes stream parameters.
-        cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "24", "-vf", "scale=1080:1920", str(part)]
+        requested = float(entry.get("duration_s") or remaining)
+        part_cap = max(0.1, min(requested, remaining))
+        # Normalise every part so concat never mixes stream parameters. The
+        # per-part trim plus the final trim makes the 30s ceiling impossible to
+        # bypass even when upstream video/audio runs long.
+        cmd += [
+            "-t", str(part_cap), "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-r", "24", "-vf", "scale=1080:1920", str(part),
+        ]
         subprocess.run(cmd, check=True, capture_output=True)
         parts.append(part)
         duration = media_duration_s(part)
@@ -388,7 +401,10 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
     list_file.write_text("".join(f"file '{p.name}'\n" for p in parts), encoding="utf-8")
     output = out_dir / "conversation.mp4"
     subprocess.run(
-        [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(list_file), "-c", "copy", str(output)],
+        [
+            ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(list_file),
+            "-t", str(MAX_EPISODE_DURATION_S), "-c", "copy", str(output),
+        ],
         check=True,
         capture_output=True,
     )
@@ -402,7 +418,8 @@ def stitch(settings: Settings, entries: list[dict[str, Any]], out_dir: Path) -> 
             captioned = work / "conversation_captioned.mp4"
             ass_arg = str(ass_file).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
             subprocess.run(
-                [ffmpeg, "-y", "-i", str(output), "-vf", f"subtitles='{ass_arg}'",
+                [ffmpeg, "-y", "-i", str(output), "-t", str(MAX_EPISODE_DURATION_S),
+                 "-vf", f"subtitles='{ass_arg}'",
                  "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "copy",
                  "-movflags", "+faststart", str(captioned)],
                 check=True, capture_output=True,
@@ -445,6 +462,8 @@ async def generate(
     if not dry_run and not ffmpeg_path():
         raise RuntimeError("ffmpeg is not installed on this backend")
 
+    requested_segments = len(segments)
+    segments = segments[:MAX_EPISODE_SEGMENTS]
     out_dir = video_out_dir(settings)
     out_dir.mkdir(parents=True, exist_ok=True)
     realistic_manifest = load_realistic_manifest(settings)
@@ -457,6 +476,9 @@ async def generate(
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "dry_run": dry_run,
         "realistic_bank": bool(realistic_manifest),
+        "requested_segments": requested_segments,
+        "segment_cap": MAX_EPISODE_SEGMENTS,
+        "max_duration_s": MAX_EPISODE_DURATION_S,
         "segments": [],
         "conversation": None,
     }
@@ -495,6 +517,7 @@ async def generate(
             "dialogue": segment.get("dialogue"),
             "speaker_name": segment.get("speaker_name"),
             "speaker_color": segment.get("speaker_color"),
+            "duration_s": segment.get("duration_s"),
         }
         video_rel = f"segments/{index:03d}_{entry['segment_id']}.mp4"
         try:

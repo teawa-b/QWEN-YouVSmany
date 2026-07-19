@@ -20,4 +20,4 @@ class RoundPlan(BaseModel):
     contentions: list[ContentionSlot]
     rapid_rebuttal_objective: str
     closing_objective: str
-    target_turns: int = Field(16, ge=12, le=20)
+    target_turns: int = Field(7, ge=6, le=7)

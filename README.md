@@ -1,10 +1,16 @@
 # You Vs Many - AI Debate Showrunner
 
-You Vs Many is a multi-agent debate pipeline for one-person-vs-many formats. The
-current implementation is a complete vertical slice: debate intelligence, an
-audio-locked Three.js scene player, Qwen Cloud CosyVoice support, a persisted
-realistic reference-image bank, live HappyHorse video-edit endpoints, and a
-submission packaging workflow.
+You Vs Many is a short-form AI showrunner. A creator supplies one debatable
+claim; the agent writes a seven-beat script, casts one lead and two challengers,
+storyboards the scene, generates voices, directs the visual pass, and assembles
+one vertical episode. Every layer enforces the product contract: the finished
+video can never run longer than 30 seconds.
+
+The current implementation is a complete vertical slice built for the AI
+Showrunner track: multi-agent debate intelligence, an audio-locked Three.js
+previsualization player, Qwen Cloud CosyVoice support, a persisted realistic
+character bank, live HappyHorse video-edit endpoints, download-ready final
+cuts, and a submission packaging workflow.
 
 The repo is split so the API and UI can be hosted separately:
 
@@ -37,7 +43,7 @@ pytest -q
 
 # CLI debate run
 python -m youvsmany.cli --topic "Pineapple belongs on pizza" \
-  --tags texture tradition culinary-innovation --seed 0
+  --tags texture tradition --seed 0
 ```
 
 On Windows PowerShell, using the existing root virtualenv also works:
@@ -82,6 +88,11 @@ npm start
 ```
 
 Open `http://127.0.0.1:5173`.
+
+The creator UI intentionally exposes one constrained format rather than a
+technical dashboard: 1 lead + 2 challengers, 7 directed beats, vertical 9:16,
+and a hard 30-second maximum. Preview, final render, playback, and MP4 download
+live in the same final-cut workspace.
 
 To create a reviewable deliverable bundle from a running backend/frontend:
 
@@ -182,10 +193,11 @@ Two mechanisms keep generated media coherent:
 
 ## Status
 
-The app now has the full debate -> staging -> reference bank -> HappyHorse
-payload -> capture/package path. Implementation plumbing is complete through
-the Phase 7 submission/code-freeze milestone in `PROGRESS.md`; remaining work is
-polish, asset swaps, and content iteration rather than missing app flow.
+The app has the full brief -> script -> cast -> storyboard -> voice ->
+HappyHorse render -> final edit/download path. The July 2026 product pass also
+replaced the generic dashboard with a creator-first showrunner experience and
+made the 30-second rule structural across schemas, dialogue, scene timing,
+render requests, and FFmpeg output.
 
 ## License
 

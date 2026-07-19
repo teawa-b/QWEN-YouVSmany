@@ -32,6 +32,7 @@ from typing import Any
 import httpx
 
 from youvsmany.config import Settings
+from youvsmany.contracts.transcript import MAX_EPISODE_DURATION_S
 from youvsmany.media import characters
 from youvsmany.media.studio import STUDIO_SCENE
 from youvsmany.media.video_edit import (
@@ -122,11 +123,14 @@ def stitch_short(settings: Settings, entries: list[dict[str, Any]], out_dir: Pat
     cues: list[dict[str, Any]] = []
     cursor = 0.0
     for i, entry in enumerate(videos):
+        remaining = MAX_EPISODE_DURATION_S - cursor
+        if remaining <= 0:
+            break
         part = work / f"part_{i:03d}.mp4"
         subprocess.run(
             [
                 ffmpeg, "-y", "-i", str(out_dir / entry["video"]),
-                "-vf", "scale=720:1280,setsar=1", "-r", "30",
+                "-t", str(remaining), "-vf", "scale=720:1280,setsar=1", "-r", "30",
                 "-c:v", "libx264", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-ar", "44100", "-ac", "2",
                 str(part),
@@ -150,7 +154,8 @@ def stitch_short(settings: Settings, entries: list[dict[str, Any]], out_dir: Pat
     list_file.write_text("".join(f"file '{p.name}'\n" for p in parts), encoding="utf-8")
     raw = work / "short_raw.mp4"
     subprocess.run(
-        [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(list_file), "-c", "copy", str(raw)],
+        [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(list_file),
+         "-t", str(MAX_EPISODE_DURATION_S), "-c", "copy", str(raw)],
         check=True, capture_output=True,
     )
 
@@ -160,7 +165,8 @@ def stitch_short(settings: Settings, entries: list[dict[str, Any]], out_dir: Pat
         ass_file.write_text(build_captions_ass(cues), encoding="utf-8")
         ass_arg = str(ass_file).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
         subprocess.run(
-            [ffmpeg, "-y", "-i", str(raw), "-vf", f"subtitles='{ass_arg}'",
+            [ffmpeg, "-y", "-i", str(raw), "-t", str(MAX_EPISODE_DURATION_S),
+             "-vf", f"subtitles='{ass_arg}'",
              "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "copy",
              "-movflags", "+faststart", str(output)],
             check=True, capture_output=True,
@@ -201,6 +207,7 @@ async def generate(
         "dry_run": dry_run,
         "requested_segments": len(segments),
         "segment_cap": segment_cap(),
+        "max_duration_s": MAX_EPISODE_DURATION_S,
         "segments": [],
         "short": None,
     }

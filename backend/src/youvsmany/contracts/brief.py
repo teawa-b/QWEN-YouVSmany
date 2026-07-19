@@ -13,14 +13,24 @@ class ShowBrief(BaseModel):
     A starter-menu topic and a custom topic produce the *same* brief shape and
     run the *same* pipeline (blueprint 3.4)."""
 
-    topic: str = Field(..., description="The proposition to debate.")
+    topic: str = Field(..., min_length=3, max_length=160, description="The proposition to debate.")
     protagonist_position: Stance = Stance.FOR
     tone: str = Field("witty but substantive", description="Desired show tone.")
-    target_duration_s: int = Field(90, ge=60, le=120, description="Locked dialogue length.")
+    target_duration_s: int = Field(
+        30,
+        ge=20,
+        le=30,
+        description="Target runtime for the complete short-form episode (hard max: 30s).",
+    )
     content_rating: ContentRating = ContentRating.PG
     visual_style: str = Field("clean modern debate stage", description="Used later by staging.")
     topic_kind: TopicKind = TopicKind.OPINION
-    num_challengers: int = Field(3, ge=1, le=5)
+    num_challengers: int = Field(
+        2,
+        ge=1,
+        le=2,
+        description="One protagonist plus at most two challengers keeps the short readable.",
+    )
     seed: int = Field(0, description="Determinism seed for reproducible runs.")
 
 

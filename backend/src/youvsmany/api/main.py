@@ -161,10 +161,11 @@ class VideoEditSegment(BaseModel):
     speaker_color: str | None = Field(
         default=None, description="Caption speaker color (hex, e.g. #7b97ff)"
     )
+    duration_s: float = Field(default=4.0, gt=0, le=30)
 
 
 class VideoEditGenerateBody(BaseModel):
-    segments: list[VideoEditSegment] = Field(min_length=1)
+    segments: list[VideoEditSegment] = Field(min_length=1, max_length=7)
     resolution: str = "720P"
     dry_run: bool = False
     stitch: bool = True

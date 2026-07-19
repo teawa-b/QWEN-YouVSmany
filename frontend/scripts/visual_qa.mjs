@@ -98,13 +98,6 @@ const cast = [
     stance: "against",
     visual_presentation: "male",
   },
-  {
-    character_id: "challenger_3",
-    display_name: "Fourth Speaker",
-    role: "challenger",
-    stance: "against",
-    visual_presentation: "female",
-  },
 ];
 
 function assert(condition, message) {
@@ -156,7 +149,6 @@ async function main() {
               protagonist: 0xf0997b,
               challenger_1: 0x5dcaa5,
               challenger_2: 0xd4537e,
-              challenger_3: 0xefbf4f,
             }[id] || 0xffffff
           );
         },

@@ -239,7 +239,7 @@ class MockProvider:
         stance = params.get("stance", "for")
         opp = "against" if stance == "for" else "for"
         tags: list[str] = list(params.get("tags") or [])
-        n = int(params.get("num_challengers", 3))
+        n = int(params.get("num_challengers", 2))
         while len(tags) < n:
             tags.append(_GENERIC_TAGS[len(tags) % len(_GENERIC_TAGS)])
         tags = tags[:n]
@@ -291,7 +291,7 @@ class MockProvider:
                 "main_points": ["define terms", "lead with the strongest case", "pre-empt the obvious objection"],
                 "fallback_point": "even skeptics admit the appeal",
                 "genuine_concession": "it is not for every palate",
-                "response_length_range": [14, 24],
+                "response_length_range": [7, 10],
             }
         return {
             "opening": lib["opening"],
@@ -300,7 +300,7 @@ class MockProvider:
             "main_points": list(lib["points"])[:2] + [lib["rebuttal"]],
             "fallback_point": f"at minimum, {tag} deserves a real answer",
             "genuine_concession": f"the {tag} case has one fair exception",
-            "response_length_range": [10, 20],
+            "response_length_range": [7, 10],
         }
 
     def _task_plan(self, params: dict, seed: int) -> dict:
@@ -319,7 +319,7 @@ class MockProvider:
             ],
             "rapid_rebuttal_objective": "extra crossfire only if the room needs more turns",
             "closing_objective": "summarise the room's strongest pressure and the unresolved core",
-            "target_turns": int(params.get("target_turns", 16)),
+            "target_turns": int(params.get("target_turns", 7)),
         }
 
     def _task_turn(self, params: dict, seed: int) -> dict:
@@ -334,7 +334,9 @@ class MockProvider:
         topic = params.get("topic", "the proposition")
         lo, hi = (params.get("length_range") or [18, 40])
         jitter = _hash_float(f"{name}{state}{tag}{opp_tag}{seed}{params.get('index')}")
-        target_words = int(lo + (hi - lo) * jitter)
+        # These templates are authored for the full short-form allowance;
+        # random shortening made otherwise clean lines end mid-thought.
+        target_words = int(hi)
         text = _line(
             state,
             role,
@@ -402,49 +404,49 @@ def _short_topic(topic: str) -> str:
 # Humanized turn templates. These keep the offline provider close to the intended
 # live Qwen behavior.
 _PROTA_REBUTTALS = [
-    "{opp}, I hear that. But {counter}. The claim still stands.",
-    "No, {opp}, that is not a dodge. {counter_cap}.",
-    "Hard case, {opp}. Still, {counter}. The core survives.",
-    "Fine, the edge is messy. But {counter}. I am not backing off.",
+    "{opp}, fair pressure. Still, {counter}.",
+    "No dodge, {opp}: {counter}.",
+    "Hard case, {opp}. The core survives.",
+    "The edge is messy. The claim still holds.",
 ]
 
 _PROTA_ROOM_REPLIES = [
-    "You are all circling different edges, but the center is still simple: {counter}.",
-    "I hear the pile-on. {opp} sharpened it, but {counter}, so the claim survives.",
-    "Those are three pressures, not three knockouts. {counter_cap}, and that matters most.",
-    "The room is making this sound impossible. It is not: {counter}.",
+    "Different angles, same answer: {counter}.",
+    "{opp}, fair pressure. Still, {counter}.",
+    "The pile-on lands, but {counter}.",
+    "I hear the room. {counter_cap}.",
 ]
 
 _PROTA_PUSHBACKS = [
-    "Then show why that changes the answer, {opp}. I do not think it does.",
-    "That is the point, {opp}: reality is not always clean.",
-    "I am not hiding from {point}. I am saying it narrows the answer.",
-    "Name the case where {point} actually flips it, {opp}. You cannot.",
-    "You keep circling {point}, {opp}. It still does not touch the core.",
+    "That narrows the claim; it does not overturn it.",
+    "{opp}, messy is not the same as wrong.",
+    "{point_cap} matters, but the center still holds.",
+    "That pressure lands, {opp}. It still does not decide this.",
+    "You found an edge, {opp}, not a knockout.",
 ]
 
 _CHALLENGER_OPENERS = [
-    "{opp}, that sounds tidy, but {point} breaks it. Are you brushing that aside?",
-    "Hold on, {opp}. {point_cap} is the problem, not a footnote.",
-    "You make this sound obvious, {opp}, but {point} is the hard part.",
-    "Here is where it cracks, {opp}: {point}. Answer that, not the easy version.",
-    "Be honest, {opp} - {point} is the bit your claim quietly skips.",
+    "{opp}, {point} breaks that claim.",
+    "{point_cap} is the real problem, {opp}.",
+    "Your claim skips {point}, {opp}.",
+    "{opp}, answer {point}; do not dodge.",
+    "Be honest, {opp}: you skipped {point}.",
 ]
 
 _CHALLENGER_BUILDERS = [
-    "Yes, and {opp}'s point gets worse once you add {point}. That is the same claim cracking.",
-    "I agree with {opp} on the pressure, but {point} is the sharper version of it.",
-    "Not just that, {opp}. If {point} matters, the claim is already wobbling.",
-    "{opp} opened the door; {point} is what walks through it. Answer that.",
-    "That is the pile-on, {opp}: {point} is not a side issue, it is the test.",
+    "Yes, {opp}: {point} makes it worse.",
+    "Add {point}; the claim starts wobbling.",
+    "Now {point} is the test, {opp}.",
+    "Not just that, {opp}: add {point}.",
+    "The pile-on is {point}, {opp}.",
 ]
 
 _CHALLENGER_PUSHBACKS = [
-    "No, {opp}, that is the dodge. You left {point} sitting there.",
-    "That still does not land, {opp}. If {point} matters, your answer is too neat.",
-    "Come on, {opp}. Calling it messy does not explain {point}.",
-    "You moved the goalposts, {opp}. I asked about {point}, not the tidy version.",
-    "Still ducking it, {opp}: {point} is the whole question and you skated past.",
+    "{opp}, you still have not answered {point}.",
+    "{point_cap} still breaks your answer, {opp}.",
+    "Messy does not explain {point}, {opp}.",
+    "No goalpost shift, {opp}. Answer {point}.",
+    "Still ducking {point}, {opp}.",
 ]
 
 _RAPID_LINES = [
@@ -503,23 +505,18 @@ def _line(
 
     if role == "protagonist":
         if state == "OPENING":
-            # Crafted establishing beat: keep the full "surrounded" framing intact.
-            return _clip_words(
-                f"One of me, all of you. One claim on the floor: {short}. "
-                f"Come change my mind.",
-                30,
-            )
+            # The hook is also the shared claim card in the short-form cut.
+            if len(short.split()) <= 4 and not short.endswith("?"):
+                return f"My claim is that {short}. Prove it."
+            return "I back the proposition on screen. Prove me wrong."
         elif state == "CLOSING":
-            base = (
-                f"Closing it out: {short} still holds. The others found messy edges, but not "
-                f"a better answer to the main question."
-            )
+            base = "The edges got tested. The central claim still stands."
         elif objective.startswith("State the shared claim") or "first claim" in objective or "next claim" in objective:
             # Crafted claim card: keep the whole assertion + the dare to flip it.
             return _clip_words(
                 f"My claim is that {short}; your best objections can test the edges, "
                 "not erase the center. All of you, change my mind.",
-                30,
+                max(7, target_words),
             )
         elif "answer the room" in objective:
             tmpl = _pick(_PROTA_ROOM_REPLIES, jitter, bump)
@@ -528,6 +525,7 @@ def _line(
                 counter=counter,
                 counter_cap=counter_cap,
                 point=point,
+                point_cap=point_cap,
                 short=short,
             )
         elif "pushback" in objective or "narrowest" in objective or "follow-up" in objective:
@@ -537,6 +535,7 @@ def _line(
                 counter=counter,
                 counter_cap=counter_cap,
                 point=point,
+                point_cap=point_cap,
                 short=short,
             )
         else:
@@ -559,4 +558,4 @@ def _line(
         # greeting never eats the pressure point, then prepend it whole.
         if objective.startswith("greet your opponent first"):
             return f"{_pick(_GREETINGS, jitter)} {_clip_words(base, max(8, target_words))}"
-    return _clip_words(base, max(16, target_words))
+    return _clip_words(base, max(7, target_words))

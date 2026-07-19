@@ -8,8 +8,8 @@ suite in `youvsmany.evals.run_seeds` (blueprint §11.2, §12).
 | **Contention uniqueness** | `1 − mean pairwise similarity` of challenger objections, with the shared proposition words removed | higher | Proves challengers differ in *substance*, not just name (blueprint §4.2). |
 | **Repetition** | mean of each turn's max similarity to any earlier turn | lower | The moderator's repetition rule should keep the debate moving (§4.5). |
 | **Persona adherence** | fraction of turns inside the speaker's declared word-length range | higher | Private notes set a response style each agent should hold (§4.3). |
-| **Duration in target** | locked dialogue lands in 60–120 s | true | MVP episode length (§3.3). |
-| **Approved (exit criterion)** | LOCKED, 12–24 turns, unique stable turn IDs, scene cues present, ≥3 highlight candidates | true | Phase 1 exit criterion (§11.2). |
+| **Duration in target** | locked dialogue lands in 20–30 s | true | Complete short-form episode contract. |
+| **Approved (exit criterion)** | LOCKED, 6–7 turns, unique stable turn IDs, scene cues present, ≥2 highlight candidates | true | AI Showrunner short-form exit criterion. |
 
 ## Multi-agent vs single-agent baseline (§4.8)
 

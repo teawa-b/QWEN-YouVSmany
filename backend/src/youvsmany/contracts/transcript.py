@@ -11,6 +11,10 @@ from youvsmany.contracts.enums import DebateState
 # ~150 wpm conversational pace = 2.5 words/sec.
 WORDS_PER_SECOND = 2.5
 
+# Product contract: every You Vs Many episode is a complete short, not a long
+# debate with a short clipped out later.
+MAX_EPISODE_DURATION_S = 30.0
+
 # Sentinel speaker id for non-spoken ritual captions (e.g. the voted-out gavel).
 # Captions appear in the transcript but are not a debating voice, so metrics and
 # opponent-reaction lookups skip turns carrying this id.

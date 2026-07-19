@@ -25,7 +25,7 @@ def run_baseline(brief: ShowBrief, *, provider: Provider | None = None) -> Episo
     ep.run_report.model = provider.model
     ep.run_report.events.append("single-agent baseline")
 
-    target_turns = max(12, min(20, round(12 + (brief.target_duration_s - 60) / 60 * 8)))
+    target_turns = max(6, min(7, round(6 + (brief.target_duration_s - 20) / 10)))
     messages = make_messages(
         "baseline_script",
         {"topic": brief.topic, "turns": target_turns, "seed": brief.seed},

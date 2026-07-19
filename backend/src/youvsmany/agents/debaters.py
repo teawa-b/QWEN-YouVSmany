@@ -27,10 +27,9 @@ def generate_turn(
 ) -> tuple[str, int, int]:
     """Return (text, input_tokens, output_tokens) for one spoken turn."""
     strat = speaker.private_strategy
-    # Punchy, clip-friendly turns: a full debate of ~15 turns must fit 60-120s of
-    # speech (~2.5 words/sec), so cap every turn tight regardless of what the
-    # private strategy asked for. The strategy still drives CONTENT, not length.
-    length_range = [12, 22]
+    # Seven complete beats have to fit inside one 30-second final cut. Ten words
+    # per speaker leaves a little breathing room for real TTS cadence.
+    length_range = [7, 10]
     params = {
         "state": state.value,
         "speaker_id": speaker.character_id,
@@ -64,9 +63,10 @@ def generate_turn(
         system = (
             f"You are {speaker.display_name}, the one person facing a room of challengers "
             f"on {topic!r}. Put ONE shared claim on the floor for everyone to attack. "
-            f"Start literally with 'My claim is that...' and make it feel like the same "
-            f"claim all challengers can argue with. One punchy line, then invite the room "
-            f"to change your mind. HARD LIMIT {length_range[1]} words. "
+            f"For a short proposition, start with 'My claim is that...'. If the proposition "
+            f"cannot fit intact, say exactly 'I back the proposition on screen. Prove me wrong.' "
+            f"Make it the same claim all challengers can argue with. HARD LIMIT "
+            f"{length_range[1]} words. "
             f'Return JSON: {{"text": ...}}.'
         )
     else:
@@ -86,7 +86,7 @@ def generate_turn(
             f"- NEVER use canned stems like 'My objection is...' or 'On {speaker.contention_tag}, "
             f"I'll grant...'. Open differently every time. Sound like a person, not a template.\n"
             f"- Keep the heat of a real group argument: short questions, clipped pushback, plain language.\n"
-            f"- HARD LIMIT {length_range[1]} words. One or two short sentences, ONE sharp point - "
+            f"- HARD LIMIT {length_range[1]} words. One short sentence, ONE sharp point - "
             f"a quick televised exchange, never a monologue or a list. Respect: "
             f"{', '.join(speaker.boundaries)}.\n"
             f'Return JSON: {{"text": ...}}.' + private_ctx
@@ -107,7 +107,7 @@ def generate_turn(
     # Tight token cap as a backstop so a turn can't balloon into an essay.
     result = provider.complete(messages, temperature=0.9, max_tokens=90, seed=seed)
     # turn task returns {"text": ...}; parse leniently
-    text = _coerce_text(result.text)
+    text = _clip_words(_coerce_text(result.text), length_range[1])
     return text, result.input_tokens, result.output_tokens
 
 
@@ -123,3 +123,12 @@ def _coerce_text(raw: str) -> str:
     except Exception:
         pass
     return raw.strip()
+
+
+def _clip_words(text: str, limit: int) -> str:
+    """Provider-independent safety rail for the 30-second episode contract."""
+    words = text.split()
+    if len(words) <= limit:
+        return text
+    clipped = " ".join(words[:limit]).rstrip(",;:")
+    return clipped if clipped.endswith((".", "?", "!")) else clipped + "."

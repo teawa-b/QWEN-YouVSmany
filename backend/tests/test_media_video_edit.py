@@ -42,6 +42,7 @@ def test_video_edit_status_endpoint():
     body = client.get("/media/video-edit/status").json()
     assert body["model"] == "happyhorse-1.0-video-edit"
     assert body["files_url"] == "/media/video-edit/files/"
+    assert body["max_duration_s"] == 30.0
 
 
 def test_generate_requires_key_when_not_dry_run(tmp_path):
@@ -214,6 +215,31 @@ def test_stitch_writes_concat_paths_relative_to_work_dir(tmp_path, monkeypatch):
     assert concat_files == ["file 'part_000.mp4'\n"]
 
 
+def test_stitch_hard_caps_final_video_at_30_seconds(tmp_path, monkeypatch):
+    settings = make_settings(tmp_path)
+    out_dir = tmp_path / "videos"
+    segment = out_dir / "segments" / "000_seg_00.mp4"
+    segment.parent.mkdir(parents=True)
+    segment.write_bytes(b"mp4")
+    commands = []
+
+    def fake_run(cmd, check, capture_output, **kwargs):
+        commands.append(cmd)
+        return video_edit.subprocess.CompletedProcess(cmd, 0, b"", b"")
+
+    monkeypatch.setattr(video_edit, "ffmpeg_path", lambda: "ffmpeg")
+    monkeypatch.setattr(video_edit, "media_duration_s", lambda path: 30.0)
+    monkeypatch.setattr(video_edit.subprocess, "run", fake_run)
+    video_edit.stitch(
+        settings,
+        [{"status": "generated", "video": "segments/000_seg_00.mp4", "duration_s": 90}],
+        out_dir,
+    )
+
+    concat = next(cmd for cmd in commands if "concat" in cmd)
+    assert concat[concat.index("-t") + 1] == "30.0"
+
+
 def test_generate_endpoint_dry_run_returns_job(monkeypatch, tmp_path):
     monkeypatch.setenv("YVM_VIDEO_OUT_DIR", str(tmp_path / "videos"))
     monkeypatch.setenv("YVM_REFERENCE_MP4_DIR", str(tmp_path / "reference-mp4"))
@@ -229,3 +255,12 @@ def test_generate_endpoint_dry_run_returns_job(monkeypatch, tmp_path):
     body = response.json()
     assert body["status"] == "succeeded"
     assert body["segments"] == 1
+
+
+def test_generate_endpoint_rejects_more_than_seven_segments():
+    client = TestClient(app)
+    response = client.post(
+        "/media/video-edit/generate",
+        json={"segments": [sample_segment(i) for i in range(8)], "dry_run": True},
+    )
+    assert response.status_code == 422

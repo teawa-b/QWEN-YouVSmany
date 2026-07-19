@@ -19,12 +19,17 @@ from youvsmany.contracts.enums import DebateState
 from youvsmany.contracts.episode import Episode
 from youvsmany.contracts.memory import EpisodeMemory
 from youvsmany.contracts.plan import RoundPlan
-from youvsmany.contracts.transcript import CAPTION_SPEAKER_ID, Transcript, Turn
+from youvsmany.contracts.transcript import (
+    CAPTION_SPEAKER_ID,
+    MAX_EPISODE_DURATION_S,
+    Transcript,
+    Turn,
+)
 
 REPETITION_THRESHOLD = 0.6
 MAX_REGEN_PER_TURN = 2  # retry cap when a turn is repetitive
-MIN_LOCKED_TURNS = 12
-MAX_LOCKED_TURNS = 24
+MIN_LOCKED_TURNS = 6
+MAX_LOCKED_TURNS = 7
 
 
 class DebateRunner:
@@ -52,13 +57,25 @@ class DebateRunner:
         self._do_closing()
         self._transition(DebateState.LOCKED)
         self.transcript.retime()
+        if self.transcript.total_duration_s > MAX_EPISODE_DURATION_S:
+            raise RuntimeError(
+                f"episode exceeded the {MAX_EPISODE_DURATION_S:.0f}s product ceiling"
+            )
         self._reapply_timing_to_highlights_source()
         return self.ep
 
     # --- states --------------------------------------------------------
 
     def _do_opening(self) -> None:
-        self._emit(self.cast.protagonist, DebateState.OPENING, self.plan.opening_objective)
+        # The hook and shared claim are one beat. A separate throat-clearing
+        # opening costs too much of a 30-second episode.
+        self._emit(
+            self.cast.protagonist,
+            DebateState.OPENING,
+            director.room_claim_objective(self.topic),
+            scene_cue="claim_card",
+            force=True,
+        )
 
     def _do_contentions(self) -> None:
         """One shared claim, many challengers in the same room.
@@ -75,16 +92,7 @@ class DebateRunner:
         for slot in slots:
             self.memory.covered_contentions.append(slot.contention_tag)
 
-        # 1. One shared claim card for the whole room.
-        self._emit(
-            self.cast.protagonist,
-            DebateState.CONTENTIONS,
-            director.room_claim_objective(self.topic),
-            scene_cue="claim_card",
-            force=True,
-        )
-
-        # 2. Opening pressure wave: every challenger attacks the same claim from
+        # 1. Opening pressure wave: every challenger attacks the same claim from
         # their own angle. Later challengers can build on the previous voice.
         previous = self.cast.protagonist
         for index, (slot, challenger) in enumerate(zip(slots, challengers)):
@@ -101,11 +109,10 @@ class DebateRunner:
                 DebateState.CONTENTIONS,
                 objective,
                 react_to=react_to,
-                greet=index == 0,
             )
             previous = challenger
 
-        # 3. The protagonist answers the room before follow-ups begin.
+        # 2. The protagonist answers the room before one follow-up begins.
         self._emit(
             self.cast.protagonist,
             DebateState.CONTENTIONS,
@@ -113,7 +120,7 @@ class DebateRunner:
             react_to=previous,
         )
 
-        # 4. Rotating crossfire on the same claim.
+        # 3. One rotating crossfire pair gives the short a real exchange.
         pairs = director.crossfire_pairs(len(challengers), self.plan.target_turns)
         for pair_index in range(pairs):
             slot = slots[pair_index % len(slots)]
@@ -132,10 +139,9 @@ class DebateRunner:
             )
 
     def _do_rapid_rebuttal(self) -> None:
-        # Depth is baked into crossfire now, so this is a pass-through state.
-        # Kept as a safety net: only fires if a tiny cast somehow landed under
-        # the locked floor, adding one extra exchange on the last pressure angle.
-        closing_turns = 2
+        # Depth is baked into crossfire now, so this is normally a pass-through
+        # state. The guard only repairs an unexpectedly short one-challenger run.
+        closing_turns = 1
         needed = MIN_LOCKED_TURNS - len(self.transcript.turns) - closing_turns
         if needed <= 0 or not self.plan.contentions:
             return

@@ -84,7 +84,7 @@ def score_episode(ep: Episode) -> DebateMetrics:
     return DebateMetrics(
         turns=len(ep.transcript.turns),
         duration_s=dur,
-        duration_in_target=55.0 <= dur <= 130.0,
+        duration_in_target=20.0 <= dur <= 30.0,
         contention_uniqueness=_contention_uniqueness(ep),
         repetition=_repetition(ep),
         persona_adherence=_persona_adherence(ep),

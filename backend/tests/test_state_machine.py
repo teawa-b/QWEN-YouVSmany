@@ -23,9 +23,9 @@ def test_reaches_locked_with_stable_ids_and_cues():
 def test_exit_criterion_and_duration():
     ep = _run()
     assert ep.approved is True
-    assert 12 <= len(ep.transcript.turns) <= 24
-    assert 55.0 <= ep.transcript.total_duration_s <= 130.0
-    assert len(ep.highlights) >= 3
+    assert 6 <= len(ep.transcript.turns) <= 7
+    assert 20.0 <= ep.transcript.total_duration_s <= 30.0
+    assert len(ep.highlights) >= 2
 
 
 def test_cast_is_protagonist_plus_challengers_only():
@@ -71,13 +71,12 @@ def test_distinct_contentions():
 def test_shared_claim_room_crossfire():
     ep = _run(topic="the chicken came before egg", tags=("framing", "evidence", "consequences"))
     protagonist_id = ep.cast.protagonist.character_id
-    contentions = [t for t in ep.transcript.turns if t.state == DebateState.CONTENTIONS]
-    claim_cards = [t for t in contentions if t.scene_cue == "claim_card"]
+    claim_cards = [t for t in ep.transcript.turns if t.scene_cue == "claim_card"]
     assert len(claim_cards) == 1
     assert claim_cards[0].speaker_id == protagonist_id
-    assert "my claim is that" in claim_cards[0].text.lower()
+    assert claim_cards[0].text.endswith((".", "?", "!"))
 
-    after_claim = contentions[1:]
+    after_claim = [t for t in ep.transcript.turns if t.state == DebateState.CONTENTIONS]
     first_wave = after_claim[: len(ep.cast.challengers)]
     assert [t.speaker_id for t in first_wave] == [c.character_id for c in ep.cast.challengers]
 
@@ -85,7 +84,7 @@ def test_shared_claim_room_crossfire():
     assert room_answer.speaker_id == protagonist_id
 
     followups = after_claim[len(ep.cast.challengers) + 1 :]
-    assert len(followups) >= len(ep.cast.challengers) * 2
+    assert len(followups) == 2
     assert len(followups) % 2 == 0
     for i in range(0, len(followups), 2):
         assert followups[i].speaker_id != protagonist_id
@@ -96,10 +95,21 @@ def test_shared_claim_room_crossfire():
     assert not any(phrase in transcript_text for phrase in forbidden)
 
 
-def test_every_challenger_gets_opening_and_followup_pressure():
+def test_every_challenger_speaks_and_crossfire_has_a_followup():
     ep = _run()
+    counts = []
     for challenger in ep.cast.challengers:
         challenger_turns = [
             t for t in ep.transcript.turns if t.speaker_id == challenger.character_id
         ]
-        assert len(challenger_turns) >= 2
+        assert len(challenger_turns) >= 1
+        counts.append(len(challenger_turns))
+    assert max(counts) >= 2
+
+
+def test_every_line_and_final_runtime_obey_short_form_ceiling():
+    ep = _run(topic="A very long claim should still become a concise watchable debate episode")
+    assert all(t.word_count <= 10 for t in ep.transcript.turns)
+    assert ep.transcript.turns[0].text == "I back the proposition on screen. Prove me wrong."
+    assert ep.transcript.total_duration_s <= 30.0
+    assert ep.scene_manifest.total_duration_s <= 30.0

@@ -7,8 +7,16 @@ from youvsmany.contracts.enums import Role, Stance
 
 def test_brief_duration_bounds():
     with pytest.raises(ValidationError):
-        ShowBrief(topic="x", target_duration_s=30)
-    ShowBrief(topic="Pineapple belongs on pizza", target_duration_s=90)
+        ShowBrief(topic="Pineapple belongs on pizza", target_duration_s=31)
+    with pytest.raises(ValidationError):
+        ShowBrief(topic="Pineapple belongs on pizza", target_duration_s=19)
+    brief = ShowBrief(topic="Pineapple belongs on pizza", target_duration_s=30)
+    assert brief.num_challengers == 2
+
+
+def test_brief_caps_cast_at_three_total_voices():
+    with pytest.raises(ValidationError):
+        ShowBrief(topic="Pineapple belongs on pizza", num_challengers=3)
 
 
 def _char(cid, role, stance, tag):

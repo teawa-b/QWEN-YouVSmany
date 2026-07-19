@@ -76,7 +76,7 @@ def lock_episode(ep: Episode) -> Episode:
     criterion is met (blueprint 11.2)."""
     if ep.state != DebateState.LOCKED:
         raise ValueError(f"cannot lock from state {ep.state}")
-    ep.highlights = detect_highlights(ep.transcript, top_k=3)
+    ep.highlights = detect_highlights(ep.transcript, top_k=2)
     ep.approved = exit_criterion_met(ep)
     ep.run_report.events.append(
         f"locked: {len(ep.transcript.turns)} turns, {ep.transcript.total_duration_s}s, "
@@ -116,13 +116,13 @@ def run_full(
 
 
 def exit_criterion_met(ep: Episode) -> bool:
-    """One approved 60-120s debate with stable turn IDs, scene cues and
+    """One approved short-form debate with stable turn IDs, scene cues and
     highlight candidates (blueprint 11.2 exit criterion)."""
     t = ep.transcript
-    dur_ok = 55.0 <= t.total_duration_s <= 130.0  # small tolerance around 60-120
-    turns_ok = 12 <= len(t.turns) <= 24
+    dur_ok = 20.0 <= t.total_duration_s <= 30.0
+    turns_ok = 6 <= len(t.turns) <= 7
     ids_ok = len({x.turn_id for x in t.turns}) == len(t.turns) and all(x.scene_cue for x in t.turns)
-    highlights_ok = len(ep.highlights) >= 3
+    highlights_ok = len(ep.highlights) >= 2
     return dur_ok and turns_ok and ids_ok and highlights_ok
 
 

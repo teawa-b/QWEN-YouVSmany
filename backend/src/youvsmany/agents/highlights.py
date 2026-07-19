@@ -17,8 +17,8 @@ _DANGLING_PRONOUN = re.compile(r"^\s*(it|they|that|this|those|these|he|she)\b", 
 _HOOK_WORDS = ("simple", "here's", "concretely", "answer that", "the crack", "breaks")
 _EMOTION_WORDS = ("honestly", "head on", "stubborn", "dodging", "burden", "lazy", "wins", "loses")
 
-MIN_WINDOW_S = 12.0
-MAX_WINDOW_S = 40.0
+MIN_WINDOW_S = 5.0
+MAX_WINDOW_S = 14.0
 
 
 def _role_of(turn: Turn, transcript: Transcript) -> str:

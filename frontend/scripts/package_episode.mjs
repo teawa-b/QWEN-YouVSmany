@@ -26,10 +26,10 @@ const config = {
   topic: arg("topic", "Pineapple belongs on pizza"),
   stance: arg("stance", "for"),
   kind: arg("kind", "opinion"),
-  challengers: Number(arg("challengers", "3")),
+  challengers: Number(arg("challengers", "2")),
   seed: Number(arg("seed", "0")),
-  duration: Number(arg("duration", "90")),
-  tags: arg("tags", "texture,tradition,culinary-innovation")
+  duration: Number(arg("duration", "30")),
+  tags: arg("tags", "texture,tradition")
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean),
@@ -41,6 +41,13 @@ const config = {
   stills: Number(arg("stills", "6")),
   segmentCapMs: Number(arg("segment-cap-ms", "0")),
 };
+
+if (config.duration > 30 || config.duration < 20) {
+  throw new Error("Episode duration must stay between 20 and 30 seconds.");
+}
+if (config.challengers < 1 || config.challengers > 2) {
+  throw new Error("Episode cast supports one or two challengers (three total voices max).");
+}
 
 let playwright;
 try {

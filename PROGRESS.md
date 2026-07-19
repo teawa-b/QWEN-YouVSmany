@@ -13,6 +13,23 @@ criterion is met.
 >   each set's stage bounds.
 > - **Voice/TTS: Qwen Cloud CosyVoice** (via DashScope), assembled into the
 >   master audio timeline before any 3D/video work.
+> - **Short-form product lock:** every episode is 1 lead + 2 challengers, at
+>   most 7 beats, vertical 9:16, and never longer than 30 seconds. The ceiling
+>   is enforced by the brief schema, transcript, scene timeline, render API,
+>   and final FFmpeg stitch.
+
+## 2026 AI Showrunner polish pass
+
+- [x] Reframed the product from a debate dashboard into a one-click showrunner:
+      brief -> script -> cast -> direct -> render -> download.
+- [x] Replaced the equal-card neon home screen with an editorial, cinematic
+      creator experience and a clear format promise.
+- [x] Reduced the cast to three total voices and the story to seven beats so
+      the output remains readable at short-form pace.
+- [x] Added strict 30-second validation and render trimming at every boundary.
+- [x] Made the final 9:16 cut the primary result, with preview, render, playback,
+      and MP4 download controls in one workspace.
+- [x] Backend regression suite: **65 tests passing**.
 
 ## Phase Status
 
@@ -68,11 +85,11 @@ Sub-tasks:
 - [x] **Close-up camera framing**: seated head height is measured from the
       Mixamo head bone instead of the animated bounding box (raised hands were
       inflating the target), and close shots now frame the visible upper body.
-- [x] **Backend tests**: 46 tests passing for state machine, scene contract,
+- [x] **Backend tests**: 65 tests passing for state machine, scene contract,
       voice mapping, determinism, schemas, safety and metrics.
 - [x] **9:16 reference asset bank**: starter images and silent speaking-angle
-      clips for intro, main speaker, second speaker, third speaker and fourth
-      speaker slots, so image/video guided generation can keep characters
+      clips for intro, main speaker, second speaker and third speaker slots
+      (plus legacy fourth-speaker references), so image/video guided generation can keep characters
       consistent from scene to scene. Current bank lives at
       `frontend/assets/reference/vertical-v1/` with 19 PNG/WebM references.
 - [x] **Realistic character reference bank**: Qwen Image Edit Max pass that
@@ -184,7 +201,7 @@ Sub-tasks:
 
 - Multi-agent debate engine: brief -> safety gate -> cast -> private notes ->
   director plan -> debate state machine -> LOCKED transcript -> highlights.
-- Cast is **1 protagonist + N challengers** (no moderator voice).
+- Cast is **1 protagonist + 2 challengers** (no moderator voice).
 - Debate now runs as a shared-room crossfire instead of separate isolated duels.
 - 5-seed eval with contention-uniqueness / repetition / persona / duration
   metrics vs a single-agent baseline.
